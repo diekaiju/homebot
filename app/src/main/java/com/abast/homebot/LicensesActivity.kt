@@ -2,7 +2,7 @@ package com.abast.homebot
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import kotlinx.android.synthetic.main.activity_licenses.*
+import com.abast.homebot.databinding.ActivityLicensesBinding
 
 class LicensesActivity : AppCompatActivity() {
 
@@ -12,10 +12,11 @@ class LicensesActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_licenses)
-        webview.settings.loadWithOverviewMode = true
-        webview.settings.useWideViewPort = true
-        webview.loadUrl(LICENSES_HTML_PATH)
+        val binding = ActivityLicensesBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.webview.settings.loadWithOverviewMode = true
+        binding.webview.settings.useWideViewPort = true
+        binding.webview.loadUrl(LICENSES_HTML_PATH)
     }
 
 }

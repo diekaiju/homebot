@@ -4,6 +4,9 @@ import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ActivityInfo
+import android.content.pm.PackageManager
+import android.content.pm.PackageManager.ResolveInfoFlags
+import android.os.Build
 import android.os.Bundle
 import com.abast.homebot.R
 import io.reactivex.Single
@@ -61,7 +64,11 @@ class AppPickerActivity : BasePickerActivity() {
             if(queryIntent == null){
                 it.onError(Throwable("Empty intent"))
             }
-            val itemList = packageManager.queryIntentActivities(queryIntent, 0)
+            val itemList = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.queryIntentActivities(queryIntent!!, ResolveInfoFlags.of(PackageManager.MATCH_ALL.toLong()))
+            } else {
+                packageManager.queryIntentActivities(queryIntent!!, 0)
+            }
             val array = itemList.map { resolveInfo -> resolveInfo.activityInfo }.toTypedArray()
             array.sortBy { activityInfo -> activityInfo.loadLabel(packageManager).toString().toLowerCase() }
             it.onSuccess(array)

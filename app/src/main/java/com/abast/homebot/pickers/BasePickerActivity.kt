@@ -8,11 +8,10 @@ import android.view.View
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.abast.homebot.R
-import kotlinx.android.synthetic.main.activity_recyclerview.*
-import kotlinx.android.synthetic.main.list_item.view.*
+import com.abast.homebot.databinding.ActivityRecyclerviewBinding
 
 abstract class BasePickerActivity : AppCompatActivity() {
-
+    private lateinit var binding: ActivityRecyclerviewBinding
     lateinit var adapter : ActivityInfoAdapter
     var headerItem : ActivityInfo? = null
 
@@ -20,28 +19,29 @@ abstract class BasePickerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_recyclerview)
+        binding = ActivityRecyclerviewBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         adapter = ActivityInfoAdapter(this) {
             onItemClick(it)
         }
 
-        recycler_view.layoutManager = LinearLayoutManager(this,RecyclerView.VERTICAL,false)
-        recycler_view.adapter = adapter
+        binding.recyclerView.layoutManager = LinearLayoutManager(this,RecyclerView.VERTICAL,false)
+        binding.recyclerView.adapter = adapter
     }
 
     fun setLoading(enabled: Boolean){
-        progressBar.visibility = if(enabled) View.VISIBLE else View.INVISIBLE
+        binding.progressBar.visibility = if(enabled) View.VISIBLE else View.INVISIBLE
     }
 
     fun setHeader(item : ActivityInfo){
         headerItem = item
-        headerTitle.visibility = View.VISIBLE
-        header.visibility = View.VISIBLE
-        header.label.text = item.loadLabel(packageManager)
-        header.subtitle.text = getString(R.string.default_activity)
-        header.image.setImageDrawable(item.loadIcon(packageManager))
-        header.setOnClickListener{ onItemClick(item) }
+        binding.headerTitle.visibility = View.VISIBLE
+        binding.header.root.visibility = View.VISIBLE
+        binding.header.label.text = item.loadLabel(packageManager)
+        binding.header.subtitle.text = getString(R.string.default_activity)
+        binding.header.image.setImageDrawable(item.loadIcon(packageManager))
+        binding.header.root.setOnClickListener{ onItemClick(item) }
     }
 
     fun setListItems(items : Array<ActivityInfo>){
@@ -49,9 +49,9 @@ abstract class BasePickerActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
 
         if(items.isEmpty()){
-            emptyText.visibility = View.VISIBLE
+            binding.emptyText.visibility = View.VISIBLE
         }else{
-            emptyText.visibility = View.GONE
+            binding.emptyText.visibility = View.GONE
         }
     }
 

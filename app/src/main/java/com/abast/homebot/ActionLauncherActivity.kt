@@ -7,19 +7,21 @@ import android.os.Bundle
 import android.preference.PreferenceManager
 import androidx.appcompat.app.AppCompatActivity
 import com.abast.homebot.actions.HomeAction
+import com.abast.homebot.databinding.ActivityLauncherBinding
 import com.abast.homebot.views.QuickActionButton
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.ObjectReader
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import kotlinx.android.synthetic.main.activity_launcher.*
 
 class ActionLauncherActivity : AppCompatActivity() {
     private val sharedPrefs: SharedPreferences by lazy {
         PreferenceManager.getDefaultSharedPreferences(this)
     }
     private val mapper: ObjectMapper by lazy { jacksonObjectMapper() }
-    private val actionsReader: ObjectReader by lazy { mapper.readerFor(object : TypeReference<List<HomeAction>>() {}) }
+    private val actionsReader: ObjectReader by lazy {
+        mapper.readerFor(object : TypeReference<List<HomeAction>>() {})
+    }
 
     private val actions: List<HomeAction> by lazy {
         val string = sharedPrefs.getString(getString(R.string.actions_setting_key), "[]")
@@ -28,8 +30,9 @@ class ActionLauncherActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_launcher)
-        launcher_background.setOnClickListener {
+        val binding = ActivityLauncherBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+        binding.launcherBackground.setOnClickListener {
             finish()
         }
         when (actions.size) {
@@ -41,7 +44,7 @@ class ActionLauncherActivity : AppCompatActivity() {
                         setAction(it)
                     }
                 }.also {
-                    launcher_background.setButtons(it)
+                    binding.launcherBackground.setButtons(it)
                 }
             }
         }

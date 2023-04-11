@@ -3,8 +3,10 @@ package com.abast.homebot.actions
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.net.Uri
+import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
@@ -76,7 +78,9 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
 }
 
 object ToggleFlashlight : HomeAction() {
-    override fun icon(context: Context): Drawable = context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
         val flashlightIntent = Intent(context, FlashlightService::class.java)
@@ -89,7 +93,9 @@ object ToggleFlashlight : HomeAction() {
 }
 
 object ToggleBrightness : HomeAction() {
-    override fun icon(context: Context): Drawable = context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
         val activity = context as Activity
@@ -103,7 +109,8 @@ object ToggleBrightness : HomeAction() {
                     Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL
                 )
                 //Get the current system brightness
-                val brightness = Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS)
+                val brightness =
+                    Settings.System.getInt(cResolver, Settings.System.SCREEN_BRIGHTNESS)
                 if (brightness > 0) {
                     Settings.System.putInt(cResolver, Settings.System.SCREEN_BRIGHTNESS, 0)
                 } else {
@@ -125,7 +132,9 @@ object ToggleBrightness : HomeAction() {
 }
 
 object OpenRecentApps : HomeAction() {
-    override fun icon(context: Context): Drawable = context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
         try {
@@ -133,8 +142,9 @@ object OpenRecentApps : HomeAction() {
             val getService = serviceManagerClass.getMethod("getService", String::class.java)
             val retbinder = getService.invoke(serviceManagerClass, "statusbar") as IBinder
             val statusBarClass = Class.forName(retbinder.interfaceDescriptor!!)
-            val statusBarObject = statusBarClass.classes[0].getMethod("asInterface", IBinder::class.java)
-                .invoke(null, retbinder)
+            val statusBarObject =
+                statusBarClass.classes[0].getMethod("asInterface", IBinder::class.java)
+                    .invoke(null, retbinder)
             val clearAll = statusBarClass.getMethod("toggleRecentApps")
             clearAll.isAccessible = true
             clearAll.invoke(statusBarObject)
@@ -164,10 +174,18 @@ data class LaunchApp(val uri: String) : HomeAction() {
     }
 
     override fun label(context: Context): String =
-        context.packageManager.resolveActivity(
-            Intent.parseUri(uri, 0),
-            0
-        ).activityInfo.loadLabel(context.packageManager).toString()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Log.d("HBT", "uri is $uri")
+            context.packageManager.resolveActivity(
+                Intent.parseUri(uri, 0),
+                PackageManager.ResolveInfoFlags.of(0L)
+            )!!
+        } else {
+            context.packageManager.resolveActivity(
+                Intent.parseUri(uri, 0),
+                0
+            )!!
+        }.activityInfo.loadLabel(context.packageManager).toString()
 
     override fun run(context: Context) {
         val activity = context as Activity
@@ -189,7 +207,9 @@ data class LaunchApp(val uri: String) : HomeAction() {
 }
 
 data class LaunchShortcut(val uri: String, val name: String) : HomeAction() {
-    override fun icon(context: Context): Drawable = context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+    override fun icon(context: Context): Drawable =
+        context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+
     override fun label(context: Context): String = name
     override fun run(context: Context) {
         val activity = context as Activity
@@ -210,7 +230,9 @@ data class LaunchShortcut(val uri: String, val name: String) : HomeAction() {
 }
 
 data class OpenWeb(val address: String) : HomeAction() {
-    override fun icon(context: Context): Drawable = context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+
     override fun label(context: Context): String = address
     override fun run(context: Context) {
         val activity = context as Activity
@@ -226,7 +248,8 @@ data class OpenWeb(val address: String) : HomeAction() {
         get() = R.string.pref_title_web
 }
 
-data class Folder(val iconFile: String, val name: String, val actions: List<HomeAction>) : HomeAction() {
+data class Folder(val iconFile: String, val name: String, val actions: List<HomeAction>) :
+    HomeAction() {
     init {
         require(actions.isNotEmpty())
     }

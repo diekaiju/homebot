@@ -10,16 +10,19 @@ import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import com.abast.homebot.databinding.ActivityMainBinding
 import com.abast.homebot.settings.HomeBotPreferenceFragment
-import kotlinx.android.synthetic.main.activity_main.*
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var binding: ActivityMainBinding
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        binding = ActivityMainBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        warningButton.setOnClickListener{
+        binding.warningButton.setOnClickListener{
             // Opens assistant settings
             val intent = Intent(Settings.ACTION_VOICE_INPUT_SETTINGS)
             val packageManager = packageManager
@@ -38,11 +41,11 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         if(isAssistApp(this)){
-            warningText.visibility = View.GONE
-            warningButton.visibility = View.GONE
+            binding.warningText.visibility = View.GONE
+            binding.warningButton.visibility = View.GONE
         }else{
-            warningText.visibility = View.VISIBLE
-            warningButton.visibility = View.VISIBLE
+            binding.warningText.visibility = View.VISIBLE
+            binding.warningButton.visibility = View.VISIBLE
         }
     }
 
@@ -51,8 +54,8 @@ class MainActivity : AppCompatActivity() {
         return true
     }
 
-    override fun onOptionsItemSelected(item: MenuItem?): Boolean {
-        if(item?.itemId == R.id.licenses){
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        if(item.itemId == R.id.licenses){
             startActivity(Intent(this,LicensesActivity::class.java))
             return true
         }

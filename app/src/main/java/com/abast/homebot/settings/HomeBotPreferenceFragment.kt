@@ -166,9 +166,8 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
             when (requestCode) {
                 AppPickerActivity.REQUEST_CODE_APP -> {
                     data?.extras?.getParcelable<ActivityInfo>(AppPickerActivity.EXTRA_PICKED_CONTENT)?.let { appData ->
-                        val activityIntent = Intent()
-                        activityIntent.setClassName(appData.packageName, appData.name)
-                        val value = activityIntent.toUri(Intent.URI_INTENT_SCHEME)
+                        val activityIntent = activity!!.packageManager.getLaunchIntentForPackage(appData.packageName)!!
+                        val value = activityIntent.toUri(0)
                         actionsPreference.addAction(LaunchApp(value))
                     }
                 }

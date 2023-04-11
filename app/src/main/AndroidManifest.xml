@@ -1,82 +1,85 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools"
-          package="com.abast.homebot">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.abast.homebot">
 
-    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT"/>
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission
-            android:name="android.permission.MANAGE_DOCUMENTS"
-            tools:ignore="ProtectedPermissions"/>
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+        android:name="android.permission.MANAGE_DOCUMENTS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission
-            android:name="android.permission.WRITE_SETTINGS"
-            tools:ignore="ProtectedPermissions"/>
+        android:name="android.permission.WRITE_SETTINGS"
+        tools:ignore="ProtectedPermissions" />
     <uses-permission
-            android:name="android.permission.PACKAGE_USAGE_STATS"
-            tools:ignore="ProtectedPermissions"/>
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <application
-            android:allowBackup="false"
-            android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        tools:ignore="GoogleAppIndexingWarning">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleInstance">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".pickers.ActivityPickerActivity"
+            android:label="@string/choose_activity"
+            android:parentActivityName=".MainActivity"></activity>
+
+        <activity
+            android:name=".pickers.AppPickerActivity"
+            android:label="@string/choose_app"
+            android:parentActivityName=".MainActivity"></activity>
+
+        <activity
+            android:name=".ActionLauncherActivity"
+            android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
+            android:excludeFromRecents="true"
+            android:exported="true"
             android:label="@string/app_name"
-            android:roundIcon="@mipmap/ic_launcher_round"
-            android:supportsRtl="true"
-            android:theme="@style/AppTheme" tools:ignore="GoogleAppIndexingWarning">
-
-        <activity
-                android:name=".MainActivity"
-                android:launchMode="singleInstance">
+            android:launchMode="singleTop"
+            android:theme="@style/TranslucentTheme">
             <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-
-        <activity
-                android:name=".pickers.ActivityPickerActivity"
-                android:label="@string/choose_activity"
-                android:parentActivityName=".MainActivity">
-        </activity>
-
-        <activity
-                android:name=".pickers.AppPickerActivity"
-                android:label="@string/choose_app"
-                android:parentActivityName=".MainActivity">
-        </activity>
-
-        <activity
-                android:name=".ActionLauncherActivity"
-                android:configChanges="keyboard|keyboardHidden|orientation|screenLayout|uiMode|screenSize|smallestScreenSize"
-                android:excludeFromRecents="true"
-                android:launchMode="singleTop"
-                android:label="@string/app_name"
-                android:theme="@style/TranslucentTheme">
-            <intent-filter>
-                <action android:name="android.intent.action.ASSIST"/>
-                <category android:name="android.intent.category.DEFAULT"/>
+                <action android:name="android.intent.action.ASSIST" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
             <meta-data
-                    android:name="com.android.systemui.action_assist_icon"
-                    android:resource="@drawable/ic_launcher_foreground_green"/>
+                android:name="com.android.systemui.action_assist_icon"
+                android:resource="@drawable/ic_launcher_foreground_green" />
         </activity>
 
         <activity
-                android:name=".LicensesActivity"
-                android:label="@string/open_source_licenses">
-        </activity>
-        <activity android:name=".settings.EditFolderActivity"/>
+            android:name=".LicensesActivity"
+            android:label="@string/open_source_licenses"></activity>
+        <activity android:name=".settings.EditFolderActivity" />
 
-        <service android:name=".FlashlightService"/>
-        
-        <provider android:authorities="com.abast.homebot" android:name="androidx.core.content.FileProvider"
-                  android:exported="false"
-                  android:grantUriPermissions="true">
+        <service android:name=".FlashlightService" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.abast.homebot"
+            android:exported="false"
+            android:grantUriPermissions="true">
             <meta-data
-                    android:name="android.support.FILE_PROVIDER_PATHS"
-                    android:resource="@xml/sharing_paths" />
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/sharing_paths" />
         </provider>
     </application>
 
