@@ -123,7 +123,13 @@ object ToggleBrightness : HomeAction() {
                 launchMainActivity(context)
             }
         } else {
-            launchMainActivity(context)
+            val intent = Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS).apply {
+                data = Uri.parse("package:" + context.packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            Toast.makeText(context, "Please grant permission to modify system settings", Toast.LENGTH_LONG).show()
+            activity.finish()
         }
     }
 
