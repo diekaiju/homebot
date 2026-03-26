@@ -1,8 +1,10 @@
 # HomeBot
 Kotlin Android app that enables you to remap the home button long press on Android devices
 
+This project is a fork of https://github.com/kklorenzotesta/homebot
+
 # Download
-https://play.google.com/store/apps/details?id=com.abast.homebot
+https://github.com/diekaiju/homebot/releases/tag/1.2
 
 # Usage
 The app has to be set as your Assistant app in Settings > Apps > Advanced > Default apps > Assist & voice input
