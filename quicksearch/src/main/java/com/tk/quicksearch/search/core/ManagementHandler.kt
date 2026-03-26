@@ -1,0 +1,698 @@
+package com.tk.quicksearch.search.core
+
+import com.tk.quicksearch.search.data.AppShortcutRepository.StaticShortcut
+import com.tk.quicksearch.search.data.UserAppPreferences
+import com.tk.quicksearch.search.data.AppShortcutRepository.shortcutKey
+import com.tk.quicksearch.search.deviceSettings.DeviceSetting
+import com.tk.quicksearch.search.models.AppInfo
+import com.tk.quicksearch.search.models.CalendarEventInfo
+import com.tk.quicksearch.search.models.ContactInfo
+import com.tk.quicksearch.search.models.DeviceFile
+import kotlinx.coroutines.CoroutineScope
+
+/** Configuration for a management handler that defines how to handle different item types. */
+interface ManagementHandlerConfig<T> {
+    fun getItemId(item: T): String
+
+    fun canPinItem(item: T): Boolean = true
+
+    fun updateUiForPin(
+        item: T,
+        state: SearchUiState,
+    ): SearchUiState = state
+
+    fun updateUiForUnpin(
+        item: T,
+        state: SearchUiState,
+    ): SearchUiState = state
+
+    fun updateUiForExclude(
+        item: T,
+        state: SearchUiState,
+    ): SearchUiState = state
+
+    fun updateUiForRemoveExclusion(
+        item: T,
+        state: SearchUiState,
+    ): SearchUiState = state
+
+    fun pinItemInPreferences(
+        item: T,
+        preferences: UserAppPreferences,
+    )
+
+    fun unpinItemInPreferences(
+        item: T,
+        preferences: UserAppPreferences,
+    )
+
+    fun excludeItemInPreferences(
+        item: T,
+        preferences: UserAppPreferences,
+    )
+
+    fun removeExcludedItemInPreferences(
+        item: T,
+        preferences: UserAppPreferences,
+    )
+
+    fun setItemNicknameInPreferences(
+        item: T,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    )
+
+    fun getItemNicknameFromPreferences(
+        item: T,
+        preferences: UserAppPreferences,
+    ): String?
+
+    fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences)
+}
+
+/**
+ * Common interface for management handlers that handle pinning, excluding, and naming operations.
+ */
+interface ManagementHandler<T> {
+    /** Pin an item. */
+    fun pinItem(item: T)
+
+    /** Unpin an item. */
+    fun unpinItem(item: T)
+
+    /** Exclude an item from results. */
+    fun excludeItem(item: T)
+
+    /** Remove an item from the excluded list. */
+    fun removeExcludedItem(item: T)
+
+    /** Set a custom nickname for an item. */
+    fun setItemNickname(
+        item: T,
+        nickname: String?,
+    )
+
+    /** Get the custom nickname for an item. */
+    fun getItemNickname(item: T): String?
+
+    /** Clear all excluded items. */
+    fun clearAllExcludedItems()
+}
+
+/** Generic management handler that uses configuration to handle different item types. */
+class GenericManagementHandler<T>(
+    private val config: ManagementHandlerConfig<T>,
+    private val userPreferences: UserAppPreferences,
+    private val scope: CoroutineScope,
+    private val onStateChanged: () -> Unit,
+    private val onUiStateUpdate: ((SearchUiState) -> SearchUiState) -> Unit,
+) : ManagementHandler<T> {
+    override fun pinItem(item: T) {
+        if (!config.canPinItem(item)) return
+
+        // Update UI immediately (optimistic)
+        onUiStateUpdate { config.updateUiForPin(item, it) }
+
+        // Update preferences
+        config.pinItemInPreferences(item, userPreferences)
+        onStateChanged()
+    }
+
+    override fun unpinItem(item: T) {
+        // Update UI immediately
+        onUiStateUpdate { config.updateUiForUnpin(item, it) }
+
+        // Update preferences
+        config.unpinItemInPreferences(item, userPreferences)
+        onStateChanged()
+    }
+
+    override fun excludeItem(item: T) {
+        // Update UI immediately
+        onUiStateUpdate { config.updateUiForExclude(item, it) }
+
+        // Update preferences
+        config.excludeItemInPreferences(item, userPreferences)
+        onStateChanged()
+    }
+
+    override fun removeExcludedItem(item: T) {
+        // Update UI immediately (optimistic)
+        onUiStateUpdate { config.updateUiForRemoveExclusion(item, it) }
+
+        // Update preferences
+        config.removeExcludedItemInPreferences(item, userPreferences)
+        onStateChanged()
+    }
+
+    override fun setItemNickname(
+        item: T,
+        nickname: String?,
+    ) {
+        config.setItemNicknameInPreferences(item, nickname, userPreferences)
+        onStateChanged()
+    }
+
+    override fun getItemNickname(item: T): String? = config.getItemNicknameFromPreferences(item, userPreferences)
+
+    override fun clearAllExcludedItems() {
+        config.clearAllExcludedItemsInPreferences(userPreferences)
+        onStateChanged()
+    }
+}
+
+// =============================================================================
+// Configuration implementations for different item types
+// =============================================================================
+
+/** Configuration for managing AppInfo items. */
+class AppManagementConfig : ManagementHandlerConfig<AppInfo> {
+    override fun getItemId(item: AppInfo): String = item.launchCountKey()
+
+    override fun canPinItem(item: AppInfo): Boolean = true
+
+    override fun pinItemInPreferences(
+        item: AppInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinPackage(item.launchCountKey())
+    }
+
+    override fun unpinItemInPreferences(
+        item: AppInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinPackage(item.launchCountKey())
+    }
+
+    override fun excludeItemInPreferences(
+        item: AppInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.hidePackageInSuggestions(item.launchCountKey())
+        if (preferences.getPinnedPackages().contains(item.launchCountKey())) {
+            preferences.unpinPackage(item.launchCountKey())
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: AppInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unhidePackageInSuggestions(item.launchCountKey())
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: AppInfo,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setAppNickname(item.packageName, nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: AppInfo,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getAppNickname(item.packageName)
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllHiddenAppsInSuggestions()
+    }
+}
+
+/** Configuration for managing ContactInfo items. */
+class ContactManagementConfig : ManagementHandlerConfig<ContactInfo> {
+    override fun getItemId(item: ContactInfo): String = item.contactId.toString()
+
+    override fun updateUiForPin(
+        item: ContactInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        if (state.pinnedContacts.any { it.contactId == item.contactId }) {
+            state
+        } else {
+            state.copy(pinnedContacts = state.pinnedContacts + item)
+        }
+
+    override fun updateUiForUnpin(
+        item: ContactInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            pinnedContacts =
+                state.pinnedContacts.filterNot { pinned ->
+                    pinned.contactId == item.contactId
+                },
+        )
+
+    override fun updateUiForExclude(
+        item: ContactInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            contactResults =
+                state.contactResults.filterNot { result ->
+                    result.contactId == item.contactId
+                },
+            pinnedContacts =
+                state.pinnedContacts.filterNot { pinned ->
+                    pinned.contactId == item.contactId
+                },
+        )
+
+    override fun updateUiForRemoveExclusion(
+        item: ContactInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            excludedContacts =
+                state.excludedContacts.filterNot { it.contactId == item.contactId },
+        )
+
+    override fun pinItemInPreferences(
+        item: ContactInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinContact(item.contactId)
+    }
+
+    override fun unpinItemInPreferences(
+        item: ContactInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinContact(item.contactId)
+    }
+
+    override fun excludeItemInPreferences(
+        item: ContactInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.excludeContact(item.contactId)
+        if (preferences.getPinnedContactIds().contains(item.contactId)) {
+            preferences.unpinContact(item.contactId)
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: ContactInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.removeExcludedContact(item.contactId)
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: ContactInfo,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setContactNickname(item.contactId, nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: ContactInfo,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getContactNickname(item.contactId)
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllExcludedContacts()
+    }
+}
+
+/** Configuration for managing DeviceSetting items. */
+class SettingsManagementConfig : ManagementHandlerConfig<DeviceSetting> {
+    override fun getItemId(item: DeviceSetting): String = item.id
+
+    override fun canPinItem(item: DeviceSetting): Boolean = true // Settings can always be pinned - validation done elsewhere
+
+    override fun updateUiForPin(
+        item: DeviceSetting,
+        state: SearchUiState,
+    ): SearchUiState =
+        if (state.pinnedSettings.any { it.id == item.id }) {
+            state
+        } else {
+            state.copy(pinnedSettings = state.pinnedSettings + item)
+        }
+
+    override fun updateUiForUnpin(
+        item: DeviceSetting,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            pinnedSettings =
+                state.pinnedSettings.filterNot {
+                    it.id == item.id
+                },
+        )
+
+    override fun updateUiForExclude(
+        item: DeviceSetting,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            settingResults = state.settingResults.filterNot { it.id == item.id },
+            pinnedSettings = state.pinnedSettings.filterNot { it.id == item.id },
+            excludedSettings = state.excludedSettings + item, // Optimistically add to excluded
+        )
+
+    override fun updateUiForRemoveExclusion(
+        item: DeviceSetting,
+        state: SearchUiState,
+    ): SearchUiState = state.copy(excludedSettings = state.excludedSettings.filterNot { it.id == item.id })
+
+    override fun pinItemInPreferences(
+        item: DeviceSetting,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinSetting(item.id)
+    }
+
+    override fun unpinItemInPreferences(
+        item: DeviceSetting,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinSetting(item.id)
+    }
+
+    override fun excludeItemInPreferences(
+        item: DeviceSetting,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.excludeSetting(item.id)
+        if (preferences.getPinnedSettingIds().contains(item.id)) {
+            preferences.unpinSetting(item.id)
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: DeviceSetting,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.removeExcludedSetting(item.id)
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: DeviceSetting,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setSettingNickname(item.id, nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: DeviceSetting,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getSettingNickname(item.id)
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllExcludedSettings()
+    }
+}
+
+/** Configuration for managing StaticShortcut items. */
+class AppShortcutManagementConfig : ManagementHandlerConfig<StaticShortcut> {
+    override fun getItemId(item: StaticShortcut): String = shortcutKey(item)
+
+    override fun updateUiForPin(
+        item: StaticShortcut,
+        state: SearchUiState,
+    ): SearchUiState {
+        val key = shortcutKey(item)
+        return if (state.pinnedAppShortcuts.any { shortcutKey(it) == key }) {
+            state
+        } else {
+            state.copy(pinnedAppShortcuts = state.pinnedAppShortcuts + item)
+        }
+    }
+
+    override fun updateUiForUnpin(
+        item: StaticShortcut,
+        state: SearchUiState,
+    ): SearchUiState {
+        val key = shortcutKey(item)
+        return state.copy(
+            pinnedAppShortcuts = state.pinnedAppShortcuts.filterNot { shortcutKey(it) == key },
+        )
+    }
+
+    override fun updateUiForExclude(
+        item: StaticShortcut,
+        state: SearchUiState,
+    ): SearchUiState {
+        val key = shortcutKey(item)
+        return state.copy(
+            appShortcutResults = state.appShortcutResults.filterNot { shortcutKey(it) == key },
+            pinnedAppShortcuts = state.pinnedAppShortcuts.filterNot { shortcutKey(it) == key },
+            excludedAppShortcuts = state.excludedAppShortcuts + item,
+        )
+    }
+
+    override fun updateUiForRemoveExclusion(
+        item: StaticShortcut,
+        state: SearchUiState,
+    ): SearchUiState {
+        val key = shortcutKey(item)
+        return state.copy(
+            excludedAppShortcuts =
+                state.excludedAppShortcuts.filterNot { shortcutKey(it) == key },
+        )
+    }
+
+    override fun pinItemInPreferences(
+        item: StaticShortcut,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinAppShortcut(shortcutKey(item))
+    }
+
+    override fun unpinItemInPreferences(
+        item: StaticShortcut,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinAppShortcut(shortcutKey(item))
+    }
+
+    override fun excludeItemInPreferences(
+        item: StaticShortcut,
+        preferences: UserAppPreferences,
+    ) {
+        val key = shortcutKey(item)
+        preferences.excludeAppShortcut(key)
+        if (preferences.getPinnedAppShortcutIds().contains(key)) {
+            preferences.unpinAppShortcut(key)
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: StaticShortcut,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.removeExcludedAppShortcut(shortcutKey(item))
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: StaticShortcut,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setAppShortcutNickname(shortcutKey(item), nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: StaticShortcut,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getAppShortcutNickname(shortcutKey(item))
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllExcludedAppShortcuts()
+    }
+}
+
+/** Configuration for managing DeviceFile items. */
+class FileManagementConfig : ManagementHandlerConfig<DeviceFile> {
+    override fun getItemId(item: DeviceFile): String = item.uri.toString()
+
+    override fun updateUiForPin(
+        item: DeviceFile,
+        state: SearchUiState,
+    ): SearchUiState {
+        val uriString = item.uri.toString()
+        return if (state.pinnedFiles.any { it.uri.toString() == uriString }) {
+            state
+        } else {
+            state.copy(pinnedFiles = state.pinnedFiles + item)
+        }
+    }
+
+    override fun updateUiForUnpin(
+        item: DeviceFile,
+        state: SearchUiState,
+    ): SearchUiState {
+        val uriString = item.uri.toString()
+        return state.copy(
+            pinnedFiles = state.pinnedFiles.filterNot { it.uri.toString() == uriString },
+        )
+    }
+
+    override fun updateUiForExclude(
+        item: DeviceFile,
+        state: SearchUiState,
+    ): SearchUiState {
+        val uriString = item.uri.toString()
+        return state.copy(
+            fileResults = state.fileResults.filterNot { it.uri.toString() == uriString },
+            pinnedFiles = state.pinnedFiles.filterNot { it.uri.toString() == uriString },
+        )
+    }
+
+    override fun updateUiForRemoveExclusion(
+        item: DeviceFile,
+        state: SearchUiState,
+    ): SearchUiState {
+        val uriString = item.uri.toString()
+        return state.copy(
+            excludedFiles = state.excludedFiles.filterNot { it.uri.toString() == uriString },
+        )
+    }
+
+    override fun pinItemInPreferences(
+        item: DeviceFile,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinFile(item.uri.toString())
+    }
+
+    override fun unpinItemInPreferences(
+        item: DeviceFile,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinFile(item.uri.toString())
+    }
+
+    override fun excludeItemInPreferences(
+        item: DeviceFile,
+        preferences: UserAppPreferences,
+    ) {
+        val uriString = item.uri.toString()
+        preferences.excludeFile(uriString)
+        if (preferences.getPinnedFileUris().contains(uriString)) {
+            preferences.unpinFile(uriString)
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: DeviceFile,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.removeExcludedFile(item.uri.toString())
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: DeviceFile,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setFileNickname(item.uri.toString(), nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: DeviceFile,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getFileNickname(item.uri.toString())
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllExcludedFiles()
+    }
+}
+
+/** Configuration for managing CalendarEventInfo items. */
+class CalendarEventManagementConfig : ManagementHandlerConfig<CalendarEventInfo> {
+    override fun getItemId(item: CalendarEventInfo): String = item.eventId.toString()
+
+    override fun updateUiForPin(
+        item: CalendarEventInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        if (state.pinnedCalendarEvents.any { it.eventId == item.eventId }) {
+            state
+        } else {
+            state.copy(pinnedCalendarEvents = state.pinnedCalendarEvents + item)
+        }
+
+    override fun updateUiForUnpin(
+        item: CalendarEventInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            pinnedCalendarEvents =
+                state.pinnedCalendarEvents.filterNot { it.eventId == item.eventId },
+        )
+
+    override fun updateUiForExclude(
+        item: CalendarEventInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            calendarEvents = state.calendarEvents.filterNot { it.eventId == item.eventId },
+            pinnedCalendarEvents =
+                state.pinnedCalendarEvents.filterNot { it.eventId == item.eventId },
+            excludedCalendarEvents = state.excludedCalendarEvents + item,
+        )
+
+    override fun updateUiForRemoveExclusion(
+        item: CalendarEventInfo,
+        state: SearchUiState,
+    ): SearchUiState =
+        state.copy(
+            excludedCalendarEvents =
+                state.excludedCalendarEvents.filterNot { it.eventId == item.eventId },
+        )
+
+    override fun pinItemInPreferences(
+        item: CalendarEventInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.pinCalendarEvent(item.eventId)
+    }
+
+    override fun unpinItemInPreferences(
+        item: CalendarEventInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.unpinCalendarEvent(item.eventId)
+    }
+
+    override fun excludeItemInPreferences(
+        item: CalendarEventInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.excludeCalendarEvent(item.eventId)
+        if (preferences.getPinnedCalendarEventIds().contains(item.eventId)) {
+            preferences.unpinCalendarEvent(item.eventId)
+        }
+    }
+
+    override fun removeExcludedItemInPreferences(
+        item: CalendarEventInfo,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.removeExcludedCalendarEvent(item.eventId)
+    }
+
+    override fun setItemNicknameInPreferences(
+        item: CalendarEventInfo,
+        nickname: String?,
+        preferences: UserAppPreferences,
+    ) {
+        preferences.setCalendarEventNickname(item.eventId, nickname)
+    }
+
+    override fun getItemNicknameFromPreferences(
+        item: CalendarEventInfo,
+        preferences: UserAppPreferences,
+    ): String? = preferences.getCalendarEventNickname(item.eventId)
+
+    override fun clearAllExcludedItemsInPreferences(preferences: UserAppPreferences) {
+        preferences.clearAllExcludedCalendarEvents()
+    }
+}

@@ -57,7 +57,12 @@ class ActivityPickerActivity : BasePickerActivity() {
             val info: PackageInfo
             try {
                 info = packageManager.getPackageInfo(activityInfo.packageName, PackageManager.GET_ACTIVITIES)
-                it.onSuccess(info.activities)
+                val activities = info.activities
+                if (activities != null) {
+                    it.onSuccess(activities)
+                } else {
+                    it.onSuccess(emptyArray())
+                }
             } catch (e: PackageManager.NameNotFoundException) {
                 e.printStackTrace()
                 it.onError(e)

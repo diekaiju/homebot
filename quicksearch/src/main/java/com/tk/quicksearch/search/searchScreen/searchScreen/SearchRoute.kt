@@ -1,0 +1,655 @@
+package com.tk.quicksearch.search.searchScreen
+
+import android.Manifest
+import android.os.Handler
+import android.os.Looper
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.tk.quicksearch.R
+import com.tk.quicksearch.search.core.SearchSection
+import com.tk.quicksearch.search.core.SearchUiState
+import com.tk.quicksearch.search.core.SearchViewModel
+import com.tk.quicksearch.search.core.SearchEngine
+import com.tk.quicksearch.search.core.SearchTarget
+import com.tk.quicksearch.search.data.AppShortcutRepository.shortcutDisplayName
+import com.tk.quicksearch.search.appSettings.AppSettingResult
+import com.tk.quicksearch.search.appSettings.AppSettingResultAction
+import com.tk.quicksearch.search.appSettings.AppSettingsDestination
+import com.tk.quicksearch.search.appSettings.AppSettingsToggleKey
+import com.tk.quicksearch.search.deviceSettings.DeviceSetting
+import com.tk.quicksearch.search.models.AppInfo
+import com.tk.quicksearch.search.models.CalendarEventInfo
+import com.tk.quicksearch.search.models.ContactInfo
+import com.tk.quicksearch.search.models.DeviceFile
+import com.tk.quicksearch.search.searchHistory.RecentSearchEntry
+import com.tk.quicksearch.search.utils.FileUtils
+import com.tk.quicksearch.overlay.OverlayModeController
+import com.tk.quicksearch.shared.permissions.PermissionSettingsDialog
+import com.tk.quicksearch.shared.permissions.PermissionHelper
+import com.tk.quicksearch.shared.ui.theme.DesignTokens
+import com.tk.quicksearch.search.searchScreen.SearchScreen as SearchScreenComposable
+import com.tk.quicksearch.search.searchScreen.ExcludeUndoSnackbarHost
+import kotlinx.coroutines.launch
+
+@Composable
+fun SearchRoute(
+    modifier: Modifier = Modifier,
+    onSettingsClick: () -> Unit = {},
+    onOpenSearchHistorySettings: () -> Unit = {},
+    onSearchEngineLongPress: () -> Unit = {},
+    onCustomizeSearchEnginesClick: () -> Unit = {},
+    onOpenDirectSearchConfigure: () -> Unit = {},
+    onOpenReleaseNotesFeatures: () -> Unit = {},
+    onOpenAppSettingDestination: (AppSettingsDestination) -> Unit = {},
+    onOverlayDismissRequest: (() -> Unit)? = null,
+    onCloseAppRequest: (() -> Unit)? = null,
+    onShowToast: (Int) -> Unit = {},
+    viewModel: SearchViewModel = viewModel(),
+    onWelcomeAnimationCompleted: (() -> Unit)? = null,
+    onWallpaperLoaded: (() -> Unit)? = null,
+    isOverlayPresentation: Boolean = false,
+    overlaySnackbarHostState: SnackbarHostState? = null,
+    onOverlayExpandRequest: (() -> Unit)? = null,
+    isOverlayExpanded: Boolean = false,
+    onOverlayNumberKeyboardUiChanged: ((Boolean, Boolean) -> Unit)? = null,
+    onOverlayScrollableContentChanged: ((Boolean) -> Unit)? = null,
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val context = LocalContext.current
+
+    val nicknameUpdateVersion = uiState.nicknameUpdateVersion
+    val getAppNickname: (String) -> String? =
+        remember(nicknameUpdateVersion) {
+            { packageName -> viewModel.getAppNickname(packageName) }
+        }
+    val getContactNickname: (Long) -> String? =
+        remember(nicknameUpdateVersion) {
+            { contactId -> viewModel.getContactNickname(contactId) }
+        }
+    val getFileNickname: (String) -> String? =
+        remember(nicknameUpdateVersion) { { uri -> viewModel.getFileNickname(uri) } }
+    val getSettingNickname: (String) -> String? =
+        remember(nicknameUpdateVersion) { { id -> viewModel.getSettingNickname(id) } }
+    val getAppShortcutNickname: (String) -> String? =
+        remember(nicknameUpdateVersion) { { id -> viewModel.getAppShortcutNickname(id) } }
+
+    val snackbarHostState = remember { SnackbarHostState() }
+    val effectiveSnackbarHostState = overlaySnackbarHostState ?: snackbarHostState
+    val snackbarScope = rememberCoroutineScope()
+    val undoLabel = stringResource(R.string.action_undo)
+
+    val showUndoSnackbar: (String, () -> Unit) -> Unit = { message, onUndo ->
+        snackbarScope.launch {
+            val result =
+                effectiveSnackbarHostState.showSnackbar(
+                    message = message,
+                    actionLabel = undoLabel,
+                    duration = androidx.compose.material3.SnackbarDuration.Short,
+                )
+            if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                onUndo()
+            }
+        }
+    }
+
+    val onHideAppWithUndo: (AppInfo) -> Unit = @Suppress("LocalContextGetResourceValueCall") { app ->
+        val isSearching = uiState.query.isNotBlank()
+        viewModel.hideApp(app)
+        val messageRes =
+            if (isSearching) {
+                R.string.toast_excluded_from_results
+            } else {
+                R.string.toast_excluded_from_suggestions
+            }
+        showUndoSnackbar(context.getString(messageRes, app.appName)) {
+            if (isSearching) {
+                viewModel.unhideAppFromResults(app)
+            } else {
+                viewModel.unhideAppFromSuggestions(app)
+            }
+        }
+    }
+
+    val onExcludeContactWithUndo: (ContactInfo) -> Unit = @Suppress("LocalContextGetResourceValueCall") { contact ->
+        viewModel.excludeContact(contact)
+        showUndoSnackbar(
+            context.getString(R.string.toast_excluded_from_results, contact.displayName),
+        ) {
+            viewModel.removeExcludedContact(contact)
+        }
+    }
+
+    val onExcludeFileWithUndo: (DeviceFile) -> Unit = @Suppress("LocalContextGetResourceValueCall") { file ->
+        viewModel.excludeFile(file)
+        showUndoSnackbar(
+            context.getString(R.string.toast_excluded_from_results, file.displayName),
+        ) {
+            viewModel.removeExcludedFile(file)
+        }
+    }
+
+    val onExcludeFileExtensionWithUndo: (DeviceFile) -> Unit = @Suppress("LocalContextGetResourceValueCall") { file ->
+        val extension = FileUtils.getFileExtension(file.displayName)
+        if (extension != null) {
+            viewModel.excludeFileExtension(file)
+            val extensionLabel = context.getString(R.string.file_extension_label, extension)
+            showUndoSnackbar(
+                context.getString(R.string.toast_excluded_from_results, extensionLabel),
+            ) {
+                viewModel.removeExcludedFileExtension(extension)
+            }
+        }
+    }
+
+    val onExcludeSettingWithUndo: (DeviceSetting) -> Unit = @Suppress("LocalContextGetResourceValueCall") { setting ->
+        viewModel.excludeSetting(setting)
+        showUndoSnackbar(
+            context.getString(R.string.toast_excluded_from_results, setting.title),
+        ) {
+            viewModel.removeExcludedSetting(setting)
+        }
+    }
+
+    val onExcludeAppShortcutWithUndo: (com.tk.quicksearch.search.data.AppShortcutRepository.StaticShortcut) -> Unit = @Suppress("LocalContextGetResourceValueCall") { shortcut ->
+        viewModel.excludeAppShortcut(shortcut)
+        showUndoSnackbar(
+            context.getString(
+                R.string.toast_excluded_from_results,
+                shortcutDisplayName(shortcut),
+            ),
+        ) {
+            viewModel.removeExcludedAppShortcut(shortcut)
+        }
+    }
+
+    val onExcludeCalendarEventWithUndo: (CalendarEventInfo) -> Unit = @Suppress("LocalContextGetResourceValueCall") { event ->
+        viewModel.excludeCalendarEvent(event)
+        val label = event.title.ifBlank { context.getString(R.string.section_calendar) }
+        showUndoSnackbar(
+            context.getString(R.string.toast_excluded_from_results, label),
+        ) {
+            viewModel.removeExcludedCalendarEvent(event)
+        }
+    }
+
+    // Set up toast callback for ViewModel
+    val showToast: (Int) -> Unit = @Suppress("LocalContextGetResourceValueCall") { stringResId ->
+        android.widget.Toast
+            .makeText(
+                context,
+                context.getString(stringResId),
+                android.widget.Toast.LENGTH_SHORT,
+            ).show()
+    }
+
+    // UI feedback is now handled by UiFeedbackService in the ViewModel
+
+    // Wrapper function that calls directly - performCall will handle permission check and fallback
+    // to dialer
+    val callContactWithPermission: (ContactInfo) -> Unit = { contact ->
+        viewModel.callContact(contact)
+    }
+
+    val showContactMethodsBottomSheet: (ContactInfo) -> Unit = { contact ->
+        viewModel.trackRecentContactTap(contact)
+        viewModel.showContactMethodsBottomSheet(contact)
+    }
+
+    val dismissContactMethodsBottomSheet: () -> Unit = {
+        viewModel.dismissContactMethodsBottomSheet()
+    }
+    var showPermissionSettingsDialog by remember { mutableStateOf(false) }
+    var pendingPermissionSettingsAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var pendingPermissionSettingsType by remember { mutableStateOf<Int?>(null) }
+    var pendingDirectDialToggleFromAppSetting by remember { mutableStateOf(false) }
+
+    val callPermissionLauncher =
+        if (context is android.app.Activity) {
+            rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission(),
+            ) { isGranted ->
+                if (pendingDirectDialToggleFromAppSetting) {
+                    pendingDirectDialToggleFromAppSetting = false
+                    if (isGranted) {
+                        viewModel.setDirectDialEnabled(true)
+                    } else {
+                        var shouldShowSettingsDialog = false
+                        PermissionHelper.handleDeniedRuntimePermission(
+                            context = context,
+                            permission = Manifest.permission.CALL_PHONE,
+                            wasPreviouslyDenied = true,
+                            onOpenSettings = {
+                                shouldShowSettingsDialog = true
+                                pendingPermissionSettingsType = R.string.settings_call_permission_title
+                                pendingPermissionSettingsAction = viewModel::openAppSettings
+                                showPermissionSettingsDialog = true
+                            },
+                        )
+                        if (!shouldShowSettingsDialog) {
+                            onShowToast(R.string.error_call_permission_required)
+                        }
+                    }
+                    return@rememberLauncherForActivityResult
+                }
+
+                if (isGranted) {
+                    viewModel.onCallPermissionResult(true)
+                } else {
+                    var shouldShowSettingsDialog = false
+                    PermissionHelper.handleDeniedRuntimePermission(
+                        context = context,
+                        permission = Manifest.permission.CALL_PHONE,
+                        wasPreviouslyDenied = true,
+                        onOpenSettings = {
+                            shouldShowSettingsDialog = true
+                            pendingPermissionSettingsType = R.string.settings_call_permission_title
+                            pendingPermissionSettingsAction = viewModel::openAppSettings
+                            showPermissionSettingsDialog = true
+                        },
+                    )
+                    viewModel.onCallPermissionResult(
+                        isGranted = false,
+                        shouldShowPermissionError = !shouldShowSettingsDialog,
+                    )
+                }
+            }
+        } else {
+            null
+        }
+
+    val isAppSettingToggleChecked: (AppSettingResult) -> Boolean = { setting ->
+        when (setting.toggleKey) {
+            AppSettingsToggleKey.OVERLAY_MODE -> uiState.overlayModeEnabled
+            AppSettingsToggleKey.ONE_HANDED_MODE -> uiState.oneHandedMode
+            AppSettingsToggleKey.BOTTOM_SEARCHBAR -> uiState.bottomSearchBarEnabled
+            AppSettingsToggleKey.APP_LABELS -> uiState.showAppLabels
+            AppSettingsToggleKey.SEARCH_ENGINE_COMPACT_MODE -> uiState.isSearchEngineCompactMode
+            AppSettingsToggleKey.SEARCH_ENGINE_ALIAS_SUFFIX -> uiState.isSearchEngineAliasSuffixEnabled
+            AppSettingsToggleKey.CALCULATOR -> uiState.calculatorEnabled
+            AppSettingsToggleKey.UNIT_CONVERTER -> uiState.unitConverterEnabled
+            AppSettingsToggleKey.DATE_CALCULATOR -> uiState.dateCalculatorEnabled
+            AppSettingsToggleKey.APP_SUGGESTIONS -> uiState.appSuggestionsEnabled
+            AppSettingsToggleKey.WEB_SUGGESTIONS -> uiState.webSuggestionsEnabled
+            AppSettingsToggleKey.RECENT_QUERIES -> uiState.recentQueriesEnabled
+            AppSettingsToggleKey.TOP_RESULT_INDICATOR -> uiState.topResultIndicatorEnabled
+            AppSettingsToggleKey.OPEN_KEYBOARD -> uiState.openKeyboardOnLaunch
+            AppSettingsToggleKey.CLEAR_QUERY -> uiState.clearQueryOnLaunch
+            AppSettingsToggleKey.AUTO_CLOSE_OVERLAY -> uiState.autoCloseOverlay
+            AppSettingsToggleKey.CIRCULAR_APP_ICONS ->
+                uiState.appIconShape == com.tk.quicksearch.search.core.AppIconShape.CIRCLE
+            AppSettingsToggleKey.SHOW_FOLDERS -> uiState.showFolders
+            AppSettingsToggleKey.SHOW_SYSTEM_FILES -> uiState.showSystemFiles
+            AppSettingsToggleKey.DIRECT_DIAL -> uiState.directDialEnabled
+            AppSettingsToggleKey.SEARCH_APPS -> !uiState.disabledSections.contains(SearchSection.APPS)
+            AppSettingsToggleKey.SEARCH_APP_SHORTCUTS -> !uiState.disabledSections.contains(SearchSection.APP_SHORTCUTS)
+            AppSettingsToggleKey.SEARCH_CONTACTS -> !uiState.disabledSections.contains(SearchSection.CONTACTS)
+            AppSettingsToggleKey.SEARCH_FILES -> !uiState.disabledSections.contains(SearchSection.FILES)
+            AppSettingsToggleKey.SEARCH_DEVICE_SETTINGS -> !uiState.disabledSections.contains(SearchSection.SETTINGS)
+            AppSettingsToggleKey.SEARCH_CALENDAR -> !uiState.disabledSections.contains(SearchSection.CALENDAR)
+            AppSettingsToggleKey.SEARCH_APP_SETTINGS -> !uiState.disabledSections.contains(SearchSection.APP_SETTINGS)
+            AppSettingsToggleKey.ASSISTANT_LAUNCH_VOICE_MODE -> uiState.assistantLaunchVoiceModeEnabled
+            null -> false
+        }
+    }
+
+    val onAppSettingToggle: (AppSettingResult, Boolean) -> Unit = { setting, enabled ->
+        viewModel.trackRecentAppSettingTap(setting.id)
+        when (setting.toggleKey) {
+            AppSettingsToggleKey.OVERLAY_MODE -> {
+                viewModel.setOverlayModeEnabled(enabled)
+                if (enabled) {
+                    OverlayModeController.startOverlay(
+                        context = context,
+                        initialQuery = uiState.query.takeIf { it.isNotBlank() },
+                    )
+                    (context as? android.app.Activity)?.finish()
+                } else if (isOverlayPresentation) {
+                    OverlayModeController.openMainActivity(
+                        context = context,
+                        initialQuery = uiState.query.takeIf { it.isNotBlank() },
+                    )
+                    (context as? android.app.Activity)?.finish()
+                }
+            }
+            AppSettingsToggleKey.ONE_HANDED_MODE -> viewModel.setOneHandedMode(enabled)
+            AppSettingsToggleKey.BOTTOM_SEARCHBAR -> viewModel.setBottomSearchBarEnabled(enabled)
+            AppSettingsToggleKey.APP_LABELS -> viewModel.setShowAppLabels(enabled)
+            AppSettingsToggleKey.SEARCH_ENGINE_COMPACT_MODE -> viewModel.setSearchEngineCompactMode(enabled)
+            AppSettingsToggleKey.SEARCH_ENGINE_ALIAS_SUFFIX -> viewModel.setSearchEngineAliasSuffixEnabled(enabled)
+            AppSettingsToggleKey.CALCULATOR -> viewModel.setCalculatorEnabled(enabled)
+            AppSettingsToggleKey.UNIT_CONVERTER -> viewModel.setUnitConverterEnabled(enabled)
+            AppSettingsToggleKey.DATE_CALCULATOR -> viewModel.setDateCalculatorEnabled(enabled)
+            AppSettingsToggleKey.APP_SUGGESTIONS -> viewModel.setAppSuggestionsEnabled(enabled)
+            AppSettingsToggleKey.WEB_SUGGESTIONS -> viewModel.setWebSuggestionsEnabled(enabled)
+            AppSettingsToggleKey.RECENT_QUERIES -> viewModel.setRecentQueriesEnabled(enabled)
+            AppSettingsToggleKey.TOP_RESULT_INDICATOR -> viewModel.setTopResultIndicatorEnabled(enabled)
+            AppSettingsToggleKey.OPEN_KEYBOARD -> viewModel.setOpenKeyboardOnLaunchEnabled(enabled)
+            AppSettingsToggleKey.CLEAR_QUERY -> viewModel.setClearQueryOnLaunchEnabled(enabled)
+            AppSettingsToggleKey.AUTO_CLOSE_OVERLAY -> viewModel.setAutoCloseOverlayEnabled(enabled)
+            AppSettingsToggleKey.CIRCULAR_APP_ICONS ->
+                viewModel.setAppIconShape(
+                    if (enabled) {
+                        com.tk.quicksearch.search.core.AppIconShape.CIRCLE
+                    } else {
+                        com.tk.quicksearch.search.core.AppIconShape.DEFAULT
+                    },
+                )
+            AppSettingsToggleKey.SHOW_FOLDERS -> viewModel.setShowFolders(enabled)
+            AppSettingsToggleKey.SHOW_SYSTEM_FILES -> viewModel.setShowSystemFiles(enabled)
+            AppSettingsToggleKey.DIRECT_DIAL -> {
+                if (enabled) {
+                    if (uiState.hasCallPermission) {
+                        viewModel.setDirectDialEnabled(true)
+                    } else if (context is android.app.Activity) {
+                        pendingDirectDialToggleFromAppSetting = true
+                        callPermissionLauncher?.launch(Manifest.permission.CALL_PHONE)
+                    } else {
+                        onShowToast(R.string.error_call_permission_required)
+                    }
+                } else {
+                    pendingDirectDialToggleFromAppSetting = false
+                    viewModel.setDirectDialEnabled(false)
+                }
+            }
+            AppSettingsToggleKey.SEARCH_APPS -> viewModel.setSectionEnabled(SearchSection.APPS, enabled)
+            AppSettingsToggleKey.SEARCH_APP_SHORTCUTS -> viewModel.setSectionEnabled(SearchSection.APP_SHORTCUTS, enabled)
+            AppSettingsToggleKey.SEARCH_CONTACTS -> viewModel.setSectionEnabled(SearchSection.CONTACTS, enabled)
+            AppSettingsToggleKey.SEARCH_FILES -> viewModel.setSectionEnabled(SearchSection.FILES, enabled)
+            AppSettingsToggleKey.SEARCH_DEVICE_SETTINGS -> viewModel.setSectionEnabled(SearchSection.SETTINGS, enabled)
+            AppSettingsToggleKey.SEARCH_CALENDAR -> viewModel.setSectionEnabled(SearchSection.CALENDAR, enabled)
+            AppSettingsToggleKey.SEARCH_APP_SETTINGS -> viewModel.setSectionEnabled(SearchSection.APP_SETTINGS, enabled)
+            AppSettingsToggleKey.ASSISTANT_LAUNCH_VOICE_MODE -> viewModel.setAssistantLaunchVoiceModeEnabled(enabled)
+            null -> Unit
+        }
+    }
+
+    val onAppSettingClick: (AppSettingResult) -> Unit = appSettingClick@{ setting ->
+        viewModel.trackRecentAppSettingTap(setting.id)
+        if (setting.action != AppSettingResultAction.NAVIGATE) return@appSettingClick
+        setting.destination?.let { destination ->
+            onOpenAppSettingDestination(destination)
+        }
+    }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> {
+                        viewModel.handleOnResume()
+                    }
+
+                    else -> {}
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    LaunchedEffect(uiState.pendingDirectCallNumber, uiState.pendingThirdPartyCall) {
+        val pendingNumber = uiState.pendingDirectCallNumber
+        val pendingThirdPartyCall = uiState.pendingThirdPartyCall
+
+        if (pendingNumber != null || pendingThirdPartyCall != null) {
+            if (context is android.app.Activity) {
+                callPermissionLauncher?.launch(Manifest.permission.CALL_PHONE)
+            } else {
+                viewModel.onCallPermissionResult(false)
+            }
+        }
+    }
+
+    val containerModifier =
+        if (isOverlayPresentation) {
+            modifier.fillMaxWidth()
+        } else {
+            modifier.fillMaxSize()
+        }
+    val shouldAutoCloseApp = uiState.autoCloseOverlay
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+    val dismissSearchSurfaceIfNeeded: () -> Unit = dismiss@{
+        if (!shouldAutoCloseApp) return@dismiss
+        if (isOverlayPresentation) {
+            onOverlayDismissRequest?.invoke()
+        } else {
+            onCloseAppRequest?.invoke()
+        }
+    }
+    val runExternalNavigationFromOverlay: (() -> Unit) -> Unit = { action ->
+        action()
+        // Launch external navigation while this Activity is still foregrounded, then close.
+        mainHandler.post { dismissSearchSurfaceIfNeeded() }
+    }
+
+    Box(modifier = containerModifier) {
+        SearchScreenComposable(
+            modifier =
+                if (isOverlayPresentation) {
+                    Modifier.fillMaxWidth()
+                } else {
+                    Modifier.fillMaxSize()
+                },
+            state = uiState,
+            onQueryChanged = viewModel::onQueryChange,
+            onSelectRetainedQueryHandled = viewModel::consumeRetainedQuerySelectionRequest,
+            onClearQuery = viewModel::clearQuery,
+            onRequestUsagePermission = {
+                runExternalNavigationFromOverlay { viewModel.openUsageAccessSettings() }
+            },
+            onSettingsClick = onSettingsClick,
+            onAppClick = { app: com.tk.quicksearch.search.models.AppInfo ->
+                runExternalNavigationFromOverlay { viewModel.launchApp(app) }
+            },
+            onAppInfoClick = { app: com.tk.quicksearch.search.models.AppInfo ->
+                runExternalNavigationFromOverlay { viewModel.openAppInfo(app) }
+            },
+            onUninstallClick = { app: com.tk.quicksearch.search.models.AppInfo ->
+                runExternalNavigationFromOverlay { viewModel.requestUninstall(app) }
+            },
+            onHideApp = onHideAppWithUndo,
+            onPinApp = viewModel::pinApp,
+            onUnpinApp = viewModel::unpinApp,
+            onContactClick = { contact: com.tk.quicksearch.search.models.ContactInfo ->
+                runExternalNavigationFromOverlay { viewModel.openContact(contact) }
+            },
+            onShowContactMethods = showContactMethodsBottomSheet,
+            onDismissContactMethods = dismissContactMethodsBottomSheet,
+            onCallContact = callContactWithPermission,
+            onSmsContact = { contact: com.tk.quicksearch.search.models.ContactInfo ->
+                runExternalNavigationFromOverlay { viewModel.smsContact(contact) }
+            },
+            onContactMethodClick = { contact, method ->
+                runExternalNavigationFromOverlay { viewModel.handleContactMethod(contact, method) }
+            },
+            onFileClick = { file: com.tk.quicksearch.search.models.DeviceFile ->
+                runExternalNavigationFromOverlay { viewModel.openFile(file) }
+            },
+            onOpenFolder = { file: com.tk.quicksearch.search.models.DeviceFile ->
+                runExternalNavigationFromOverlay { viewModel.openContainingFolder(file) }
+            },
+            onPinContact = viewModel::pinContact,
+            onUnpinContact = viewModel::unpinContact,
+            onExcludeContact = onExcludeContactWithUndo,
+            onCalendarEventClick = { event: com.tk.quicksearch.search.models.CalendarEventInfo ->
+                runExternalNavigationFromOverlay { viewModel.openCalendarEvent(event) }
+            },
+            onPinCalendarEvent = viewModel::pinCalendarEvent,
+            onUnpinCalendarEvent = viewModel::unpinCalendarEvent,
+            onExcludeCalendarEvent = onExcludeCalendarEventWithUndo,
+            onIncludeCalendarEvent = viewModel::removeExcludedCalendarEvent,
+            onPinFile = viewModel::pinFile,
+            onUnpinFile = viewModel::unpinFile,
+            onExcludeFile = onExcludeFileWithUndo,
+            onExcludeFileExtension = onExcludeFileExtensionWithUndo,
+            onSettingClick = { setting: com.tk.quicksearch.search.deviceSettings.DeviceSetting ->
+                runExternalNavigationFromOverlay { viewModel.openSetting(setting) }
+            },
+            onAppSettingClick = onAppSettingClick,
+            onAppSettingToggle = onAppSettingToggle,
+            onAppSettingWebSuggestionsCountChange = viewModel::setWebSuggestionsCount,
+            isAppSettingToggleChecked = isAppSettingToggleChecked,
+            appSettingWebSuggestionsCount = uiState.webSuggestionsCount,
+            onPinSetting = viewModel::pinSetting,
+            onUnpinSetting = viewModel::unpinSetting,
+            onExcludeSetting = onExcludeSettingWithUndo,
+            onAppShortcutClick = { shortcut: com.tk.quicksearch.search.data.AppShortcutRepository.StaticShortcut ->
+                runExternalNavigationFromOverlay { viewModel.launchAppShortcut(shortcut) }
+            },
+            onPinAppShortcut = viewModel::pinAppShortcut,
+            onUnpinAppShortcut = viewModel::unpinAppShortcut,
+            onExcludeAppShortcut = onExcludeAppShortcutWithUndo,
+            onIncludeAppShortcut = viewModel::removeExcludedAppShortcut,
+            onAppShortcutAppInfoClick = { shortcut: com.tk.quicksearch.search.data.AppShortcutRepository.StaticShortcut ->
+                runExternalNavigationFromOverlay { viewModel.openAppInfo(shortcut.packageName) }
+            },
+            onPhoneNumberSelected = viewModel::onPhoneNumberSelected,
+            onDismissPhoneNumberSelection = viewModel::dismissPhoneNumberSelection,
+            onSearchTargetClick = { query: String, target: SearchTarget ->
+                val isDirectSearchTarget =
+                    target is SearchTarget.Engine && target.engine == SearchEngine.DIRECT_SEARCH
+                if (isDirectSearchTarget) {
+                    viewModel.openSearchTarget(query, target)
+                } else {
+                    runExternalNavigationFromOverlay { viewModel.openSearchTarget(query, target) }
+                }
+            },
+            onSearchEngineLongPress = onSearchEngineLongPress,
+            onDirectSearchEmailClick = { email: String ->
+                runExternalNavigationFromOverlay { viewModel.openEmail(email) }
+            },
+            onSetPersonalContext = viewModel::setPersonalContext,
+            onSetGeminiModel = viewModel::setGeminiModel,
+            onSetGeminiGroundingEnabled = viewModel::setGeminiGroundingEnabled,
+            onRefreshAvailableGeminiModels = viewModel::refreshAvailableGeminiModels,
+            onOpenAppSettings = {
+                pendingPermissionSettingsType = R.string.settings_permissions_title
+                pendingPermissionSettingsAction = {
+                    runExternalNavigationFromOverlay { viewModel.openAppSettings() }
+                }
+                showPermissionSettingsDialog = true
+            },
+            onOpenStorageAccessSettings = {
+                pendingPermissionSettingsType = R.string.settings_files_permission_title
+                pendingPermissionSettingsAction = {
+                    runExternalNavigationFromOverlay { viewModel.openAllFilesAccessSettings() }
+                }
+                showPermissionSettingsDialog = true
+            },
+            onOpenCalendarPermissionSettings = {
+                pendingPermissionSettingsType = R.string.settings_calendar_permission_title
+                pendingPermissionSettingsAction = {
+                    runExternalNavigationFromOverlay { viewModel.openCalendarPermissionSettings() }
+                }
+                showPermissionSettingsDialog = true
+            },
+            onAppNicknameClick = { app: com.tk.quicksearch.search.models.AppInfo ->
+                // This will be handled by the dialog state in SearchScreen
+            },
+            onClearDetectedShortcut = viewModel::clearDetectedShortcut,
+            onContactNicknameClick = { contact: com.tk.quicksearch.search.models.ContactInfo ->
+                // This will be handled by the dialog state in SearchScreen
+            },
+            onFileNicknameClick = { file: com.tk.quicksearch.search.models.DeviceFile ->
+                // This will be handled by the dialog state in SearchScreen
+            },
+            getAppNickname = getAppNickname,
+            getContactNickname = getContactNickname,
+            getFileNickname = getFileNickname,
+            getAppShortcutNickname = getAppShortcutNickname,
+            getCalendarEventNickname = viewModel::getCalendarEventNickname,
+            onSaveAppNickname = viewModel::setAppNickname,
+            onSaveAppShortcutNickname = viewModel::setAppShortcutNickname,
+            onSaveContactNickname = viewModel::setContactNickname,
+            onSaveFileNickname = viewModel::setFileNickname,
+            onSaveCalendarEventNickname = viewModel::setCalendarEventNickname,
+            getSettingNickname = getSettingNickname,
+            onSaveSettingNickname = viewModel::setSettingNickname,
+            getLastShownPhoneNumber = viewModel::getLastShownPhoneNumber,
+            setLastShownPhoneNumber = viewModel::setLastShownPhoneNumber,
+            onDirectDialChoiceSelected = viewModel::onDirectDialChoiceSelected,
+            onDismissDirectDialChoice = viewModel::dismissDirectDialChoice,
+            onReleaseNotesAcknowledged = viewModel::acknowledgeReleaseNotes,
+            onReleaseNotesViewAllFeatures = onOpenReleaseNotesFeatures,
+            onWebSuggestionClick = { suggestion: String ->
+                viewModel.onWebSuggestionTap(suggestion)
+            },
+            onSearchEngineOnboardingDismissed = viewModel::onSearchEngineOnboardingDismissed,
+            onContactActionHintDismissed = viewModel::onContactActionHintDismissed,
+            onPersonalContextHintDismissed = viewModel::onPersonalContextHintDismissed,
+            onCustomizeSearchEnginesClick = onCustomizeSearchEnginesClick,
+            onOpenDirectSearchConfigure = onOpenDirectSearchConfigure,
+            onDeleteRecentItem = viewModel::deleteRecentItem,
+            onOpenSearchHistorySettings = onOpenSearchHistorySettings,
+            onDismissSearchHistoryTip = viewModel::dismissSearchHistoryTip,
+            onWelcomeAnimationCompleted = onWelcomeAnimationCompleted,
+            onCustomAction = viewModel::onCustomAction,
+            getPrimaryContactCardAction = viewModel::getPrimaryContactCardAction,
+            getSecondaryContactCardAction = viewModel::getSecondaryContactCardAction,
+            onSavePrimaryContactCardAction = viewModel::setPrimaryContactCardAction,
+            onSaveSecondaryContactCardAction = viewModel::setSecondaryContactCardAction,
+            onWallpaperLoaded = onWallpaperLoaded,
+            isOverlayPresentation = isOverlayPresentation,
+            onOverlayExpandRequest = onOverlayExpandRequest,
+            isOverlayExpanded = isOverlayExpanded,
+            onOverlayNumberKeyboardUiChanged = onOverlayNumberKeyboardUiChanged,
+            onOverlayScrollableContentChanged = onOverlayScrollableContentChanged,
+        )
+
+        if (overlaySnackbarHostState == null) {
+            ExcludeUndoSnackbarHost(
+                hostState = snackbarHostState,
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .imePadding()
+                        .padding(
+                            start = DesignTokens.SpacingLarge,
+                            end = DesignTokens.SpacingLarge,
+                            bottom = DesignTokens.SpacingHuge,
+                        ),
+            )
+        }
+
+        if (showPermissionSettingsDialog) {
+            PermissionSettingsDialog(
+                permissionType = stringResource(pendingPermissionSettingsType ?: R.string.settings_permissions_title),
+                onConfirm = {
+                    showPermissionSettingsDialog = false
+                    pendingPermissionSettingsAction?.invoke()
+                    pendingPermissionSettingsAction = null
+                    pendingPermissionSettingsType = null
+                },
+                onDismiss = {
+                    showPermissionSettingsDialog = false
+                    pendingPermissionSettingsAction = null
+                    pendingPermissionSettingsType = null
+                },
+            )
+        }
+    }
+}

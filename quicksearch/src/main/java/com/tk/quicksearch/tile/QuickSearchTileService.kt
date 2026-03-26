@@ -1,0 +1,78 @@
+package com.tk.quicksearch.tile
+
+import android.app.PendingIntent
+import android.content.Intent
+import android.graphics.drawable.Icon
+import android.os.Build
+import android.service.quicksettings.Tile
+import android.service.quicksettings.TileService
+import com.tk.quicksearch.R
+import com.tk.quicksearch.app.MainActivity
+
+/**
+ * Quick Settings tile that launches the Quick Search home screen.
+ */
+class QuickSearchTileService : TileService() {
+    @Suppress("StartActivityAndCollapseDeprecated")
+    override fun onClick() {
+        super.onClick()
+        val launchIntent =
+            Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+                addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED or
+                        Intent.FLAG_ACTIVITY_CLEAR_TOP,
+                )
+            }
+        // Use a PendingIntent so the system can grant background launch exemption.
+        val pendingIntent =
+            PendingIntent.getActivity(
+                this,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            try {
+                startActivityAndCollapse(pendingIntent)
+            } catch (_: Exception) {
+                // Fallback if the platform disallows PendingIntent variant
+                try {
+                    @Suppress("DEPRECATION")
+                    startActivityAndCollapse(launchIntent)
+                } catch (_: Exception) {
+                    startActivity(launchIntent)
+                }
+            }
+        } else {
+            try {
+                @Suppress("DEPRECATION")
+                startActivityAndCollapse(launchIntent)
+            } catch (_: Exception) {
+                startActivity(launchIntent)
+            }
+        }
+    }
+
+    override fun onStartListening() {
+        super.onStartListening()
+        updateTileState()
+    }
+
+    override fun onTileAdded() {
+        super.onTileAdded()
+        updateTileState()
+    }
+
+    private fun updateTileState() {
+        qsTile?.let { tile ->
+            tile.label = getString(R.string.quick_settings_tile_label)
+            tile.state = Tile.STATE_ACTIVE
+            tile.icon = Icon.createWithResource(this, R.drawable.ic_widget_search)
+            tile.updateTile()
+        }
+    }
+}

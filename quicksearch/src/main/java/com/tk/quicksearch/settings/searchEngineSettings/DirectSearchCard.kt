@@ -1,0 +1,340 @@
+package com.tk.quicksearch.settings.searchEnginesScreen
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import com.tk.quicksearch.R
+import com.tk.quicksearch.settings.shared.SettingsCard
+import com.tk.quicksearch.shared.ui.theme.AppColors
+import com.tk.quicksearch.shared.ui.theme.DesignTokens
+
+/**
+ * Setup card for direct search configuration.
+ */
+@Composable
+fun DirectSearchSetupCard(
+    directSearchEnabled: Boolean,
+    onSetGeminiApiKey: (String?) -> Unit,
+    geminiApiKeyLast4: String?,
+    isSavingGeminiApiKey: Boolean = false,
+    onOpenDirectSearchConfigure: (() -> Unit)? = null,
+    isExpanded: Boolean = true,
+    onToggleExpanded: (() -> Unit)? = null,
+) {
+    var showInput by remember { mutableStateOf(false) }
+    var apiKeyInput by remember { mutableStateOf("") }
+    val hasConfiguredApiKey = directSearchEnabled && geminiApiKeyLast4 != null
+    val buttonRowBottomPadding = DesignTokens.SpacingXSmall
+    val context = LocalContext.current
+    @Suppress("DEPRECATION")
+    val clipboardManager = LocalClipboardManager.current
+    val geminiGuideUrl = stringResource(R.string.settings_gemini_guide_url)
+
+    SettingsCard(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+    ) {
+        Column(
+            modifier =
+                Modifier.padding(
+                    horizontal = DesignTokens.CardHorizontalPadding,
+                    vertical = DesignTokens.CardTopPadding,
+                ),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (onToggleExpanded != null) {
+                                Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onToggleExpanded,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        ).padding(bottom = if (isExpanded) 12.dp else 0.dp),
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.direct_search),
+                        contentDescription = null,
+                        tint = androidx.compose.ui.graphics.Color.Unspecified,
+                        modifier = Modifier.size(24.dp),
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_direct_search_toggle),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
+                if (onToggleExpanded != null) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                        contentDescription = if (isExpanded) stringResource(R.string.desc_collapse) else stringResource(R.string.desc_expand),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically(),
+                exit = shrinkVertically(),
+            ) {
+                Column {
+                    if (hasConfiguredApiKey) {
+                        Text(
+                            text = stringResource(R.string.settings_gemini_api_key_display, geminiApiKeyLast4 ?: ""),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 16.dp),
+                        )
+
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = buttonRowBottomPadding),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            if (onOpenDirectSearchConfigure != null) {
+                                TextButton(
+                                    onClick = {
+                                        onOpenDirectSearchConfigure.invoke()
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.settings_direct_search_configure))
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+                            TextButton(
+                                colors =
+                                    ButtonDefaults.textButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error,
+                                    ),
+                                onClick = {
+                                    apiKeyInput = ""
+                                    showInput = false
+                                    onSetGeminiApiKey(null)
+                                },
+                            ) {
+                                Text(text = stringResource(R.string.settings_gemini_api_key_reset))
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = stringResource(R.string.settings_direct_search_desc),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 20.dp),
+                        )
+
+                        if (showInput) {
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = apiKeyInput,
+                                    onValueChange = { apiKeyInput = it },
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 16.dp),
+                                    placeholder = {
+                                        Text(
+                                            text = if (apiKeyInput.isEmpty()) "" else "",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    },
+                                    singleLine = true,
+                                    readOnly = true, // Prevent keyboard opening
+                                )
+
+                                // Overlay clickable text when field is empty
+                                if (apiKeyInput.isEmpty()) {
+                                    Text(
+                                        text = stringResource(R.string.settings_gemini_api_key_paste_hint),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier =
+                                            Modifier
+                                                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 16.dp)
+                                                .clickable {
+                                                    clipboardManager
+                                                        .getText()
+                                                        ?.text
+                                                        ?.trim()
+                                                        ?.takeIf { it.isNotEmpty() }
+                                                        ?.let { pasted ->
+                                                            apiKeyInput = pasted
+                                                        }
+                                                },
+                                    )
+                                }
+
+                                // Tap gesture for the entire field
+                                Box(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp) // Standard TextField height
+                                            .pointerInput(Unit) {
+                                                detectTapGestures(
+                                                    onTap = {
+                                                        if (apiKeyInput.isEmpty()) {
+                                                            // Handle tap to paste when field is empty
+                                                            clipboardManager
+                                                                .getText()
+                                                                ?.text
+                                                                ?.trim()
+                                                                ?.takeIf { it.isNotEmpty() }
+                                                                ?.let { pasted ->
+                                                                    apiKeyInput = pasted
+                                                                }
+                                                        } else {
+                                                            // Clear when field has content
+                                                            apiKeyInput = ""
+                                                        }
+                                                    },
+                                                    onLongPress = {
+                                                        if (apiKeyInput.isEmpty()) {
+                                                            // Handle long press to paste when field is empty (backup)
+                                                            clipboardManager
+                                                                .getText()
+                                                                ?.text
+                                                                ?.trim()
+                                                                ?.takeIf { it.isNotEmpty() }
+                                                                ?.let { pasted ->
+                                                                    apiKeyInput = pasted
+                                                                }
+                                                        } else {
+                                                            // Clear when field has content
+                                                            apiKeyInput = ""
+                                                        }
+                                                    },
+                                                )
+                                            },
+                                )
+                            }
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = buttonRowBottomPadding),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        apiKeyInput = ""
+                                        showInput = false
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.dialog_cancel))
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Button(
+                                    enabled = !isSavingGeminiApiKey && apiKeyInput.trim().isNotEmpty(),
+                                    onClick = {
+                                        val trimmed = apiKeyInput.trim()
+                                        if (trimmed.isNotEmpty()) {
+                                            onSetGeminiApiKey(trimmed)
+                                        }
+                                    },
+                                ) {
+                                    Text(
+                                        text =
+                                            if (isSavingGeminiApiKey) {
+                                                stringResource(R.string.settings_gemini_api_key_saving)
+                                            } else {
+                                                stringResource(R.string.dialog_save)
+                                            },
+                                    )
+                                }
+                            }
+                        } else {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = buttonRowBottomPadding),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        val intent =
+                                            Intent(
+                                                Intent.ACTION_VIEW,
+                                                Uri.parse(geminiGuideUrl),
+                                            )
+                                        runCatching { context.startActivity(intent) }
+                                    },
+                                ) {
+                                    Text(text = stringResource(R.string.settings_direct_search_how_to))
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
+                                Button(
+                                    onClick = { showInput = true },
+                                ) {
+                                    Text(text = stringResource(R.string.settings_gemini_api_key_add))
+                                }
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+}

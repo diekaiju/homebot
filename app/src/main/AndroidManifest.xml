@@ -16,6 +16,7 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
 
     <application
         android:allowBackup="false"
@@ -24,6 +25,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
+        tools:replace="android:allowBackup,android:icon,android:label,android:roundIcon,android:theme"
         tools:ignore="GoogleAppIndexingWarning">
 
         <activity
@@ -68,6 +70,12 @@
             android:name=".LicensesActivity"
             android:label="@string/open_source_licenses"></activity>
         <activity android:name=".settings.EditFolderActivity" />
+        <activity
+            android:name=".QuickSearchActivity"
+            android:theme="@style/TranslucentTheme"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="stateAlwaysVisible" />
 
         <service android:name=".FlashlightService" />
 

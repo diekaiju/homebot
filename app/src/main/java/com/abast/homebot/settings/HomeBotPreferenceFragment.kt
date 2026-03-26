@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.preference.PreferenceManager
 import android.util.Log
 import android.widget.EditText
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import androidx.preference.Preference
@@ -104,6 +105,15 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                     Intent(context, EditFolderActivity::class.java),
                     EditFolderActivity.NEW_FOLDER_REQUEST_CODE
                 )
+            QuickSearch::class -> {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(context)) {
+                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                    intent.data = android.net.Uri.parse("package:" + context!!.packageName)
+                    startActivityForResult(intent, 217)
+                } else {
+                    actionsPreference.addAction(QuickSearch)
+                }
+            }
             else -> throw IllegalStateException()
         }
     }
@@ -224,6 +234,13 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                         }
                         sharedPrefs.edit().putString(getString(R.string.actions_setting_key), text).apply()
                         actionsPreference.refresh()
+                    }
+                }
+                217 -> {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.canDrawOverlays(context)) {
+                        actionsPreference.addAction(QuickSearch)
+                    } else {
+                        Toast.makeText(context, "Permission denied. Try again.", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

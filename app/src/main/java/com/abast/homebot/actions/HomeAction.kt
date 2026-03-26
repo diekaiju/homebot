@@ -38,7 +38,8 @@ import kotlin.reflect.KClass
         JsonSubTypes.Type(OpenRecentApps::class),
         JsonSubTypes.Type(LaunchShortcut::class),
         JsonSubTypes.Type(ToggleFlashlight::class),
-        JsonSubTypes.Type(Folder::class)
+        JsonSubTypes.Type(Folder::class),
+        JsonSubTypes.Type(QuickSearch::class)
     ]
 )
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -74,6 +75,7 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
     LaunchShortcut::class -> LaunchShortcut("", "", null)
     OpenWeb::class -> OpenWeb("")
     Folder::class -> Folder("", "", listOf(ToggleFlashlight))
+    QuickSearch::class -> QuickSearch
     else -> throw IllegalStateException()
 }
 
@@ -163,6 +165,24 @@ object OpenRecentApps : HomeAction() {
 
     override val titleRes: Int
         get() = R.string.pref_title_prev_app
+}
+
+object QuickSearch : HomeAction() {
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(android.R.drawable.ic_menu_search)!!
+
+    override fun label(context: Context): String = title(context)
+
+    override fun run(context: Context) {
+        val intent = Intent(context, Class.forName("com.tk.quicksearch.overlay.OverlayActivity")).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        context.startActivity(intent)
+        (context as? Activity)?.finish()
+    }
+
+    override val titleRes: Int
+        get() = R.string.pref_title_quick_search
 }
 
 data class LaunchApp(val uri: String) : HomeAction() {

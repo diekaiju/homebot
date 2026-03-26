@@ -31,7 +31,7 @@ build/
 .navigation
 captures/
 output.json 
-
+quick-search-temp/
 #NDK
 obj/
 .externalNativeBuild
