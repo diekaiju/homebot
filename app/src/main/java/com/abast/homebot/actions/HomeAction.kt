@@ -71,7 +71,7 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
     ToggleBrightness::class -> ToggleBrightness
     OpenRecentApps::class -> OpenRecentApps
     LaunchApp::class -> LaunchApp("")
-    LaunchShortcut::class -> LaunchShortcut("", "")
+    LaunchShortcut::class -> LaunchShortcut("", "", null)
     OpenWeb::class -> OpenWeb("")
     Folder::class -> Folder("", "", listOf(ToggleFlashlight))
     else -> throw IllegalStateException()
@@ -79,7 +79,7 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
 
 object ToggleFlashlight : HomeAction() {
     override fun icon(context: Context): Drawable =
-        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+        context.getDrawable(R.drawable.ic_flashlight)!!
 
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
@@ -94,7 +94,7 @@ object ToggleFlashlight : HomeAction() {
 
 object ToggleBrightness : HomeAction() {
     override fun icon(context: Context): Drawable =
-        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+        context.getDrawable(R.drawable.ic_brightness)!!
 
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
@@ -133,7 +133,7 @@ object ToggleBrightness : HomeAction() {
 
 object OpenRecentApps : HomeAction() {
     override fun icon(context: Context): Drawable =
-        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+        context.getDrawable(R.drawable.ic_recent_apps)!!
 
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
@@ -206,9 +206,17 @@ data class LaunchApp(val uri: String) : HomeAction() {
         get() = R.string.pref_title_app
 }
 
-data class LaunchShortcut(val uri: String, val name: String) : HomeAction() {
-    override fun icon(context: Context): Drawable =
-        context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+data class LaunchShortcut(val uri: String, val name: String, val iconFile: String? = null) : HomeAction() {
+    override fun icon(context: Context): Drawable {
+        if (iconFile != null) {
+            val file = File(context.filesDir, iconFile)
+            if (file.exists()) {
+                val drawable = Drawable.createFromPath(file.absolutePath)
+                if (drawable != null) return drawable
+            }
+        }
+        return context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+    }
 
     override fun label(context: Context): String = name
     override fun run(context: Context) {
@@ -231,7 +239,7 @@ data class LaunchShortcut(val uri: String, val name: String) : HomeAction() {
 
 data class OpenWeb(val address: String) : HomeAction() {
     override fun icon(context: Context): Drawable =
-        context.getDrawable(R.drawable.ic_launcher_foreground_green)!!
+        context.getDrawable(R.drawable.ic_web)!!
 
     override fun label(context: Context): String = address
     override fun run(context: Context) {

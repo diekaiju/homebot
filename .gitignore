@@ -38,3 +38,5 @@ obj/
 
 # Ignore licesnse html file
 app/src/main/assets/licenses.html
+# Project documentation map
+PROJECT_MAP.md

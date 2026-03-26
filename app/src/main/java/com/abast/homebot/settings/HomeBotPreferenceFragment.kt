@@ -20,6 +20,7 @@ import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.reflect.KClass
@@ -175,7 +176,46 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                     val shortcutIntent = data?.extras?.getParcelable<Intent>(Intent.EXTRA_SHORTCUT_INTENT)!!
                     val shortcutName = data.extras?.getString(Intent.EXTRA_SHORTCUT_NAME)!!
                     val value = shortcutIntent.toUri(Intent.URI_INTENT_SCHEME)
-                    actionsPreference.addAction(LaunchShortcut(value, shortcutName))
+                    var iconFile: String? = null
+
+                    try {
+                        val iconBitmap = data.extras?.getParcelable<android.graphics.Bitmap>(Intent.EXTRA_SHORTCUT_ICON)
+                        if (iconBitmap != null) {
+                            iconFile = UUID.randomUUID().toString() + ".png"
+                            val file = File(context!!.filesDir, iconFile)
+                            FileOutputStream(file).use { out ->
+                                iconBitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                            }
+                        } else {
+                            val iconRes = data.extras?.getParcelable<Intent.ShortcutIconResource>(Intent.EXTRA_SHORTCUT_ICON_RESOURCE)
+                            if (iconRes != null) {
+                                val res = context!!.packageManager.getResourcesForApplication(iconRes.packageName)
+                                val resId = res.getIdentifier(iconRes.resourceName, null, null)
+                                val drawable = androidx.core.content.ContextCompat.getDrawable(context!!, resId)
+                                if (drawable is android.graphics.drawable.BitmapDrawable) {
+                                    iconFile = UUID.randomUUID().toString() + ".png"
+                                    val file = File(context!!.filesDir, iconFile)
+                                    FileOutputStream(file).use { out ->
+                                        drawable.bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                                    }
+                                } else if (drawable != null) {
+                                    val bitmap = android.graphics.Bitmap.createBitmap(drawable.intrinsicWidth, drawable.intrinsicHeight, android.graphics.Bitmap.Config.ARGB_8888)
+                                    val canvas = android.graphics.Canvas(bitmap)
+                                    drawable.setBounds(0, 0, canvas.width, canvas.height)
+                                    drawable.draw(canvas)
+                                    iconFile = UUID.randomUUID().toString() + ".png"
+                                    val file = File(context!!.filesDir, iconFile)
+                                    FileOutputStream(file).use { out ->
+                                        bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out)
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+
+                    actionsPreference.addAction(LaunchShortcut(value, shortcutName, iconFile))
                 }
                 HomeBotPreferenceFragment.IMPORT_SETTINGS_FILE_REQUEST_CODE -> {
                     data?.data?.let { uri ->
