@@ -25,7 +25,7 @@ This project is a modern fork of [kklorenzotesta/homebot](https://github.com/kkl
 
 | Settings & Config | Grid Action Launcher | Quick Search Overlay |
 | :---: | :---: | :---: |
-| <img src="screenshot/homebot (1).jpg" width="30%" /> | <img src="screenshot/homebot (2).jpg" width="30%" /> | <img src="screenshot/homebot (3).jpg" width="30%" /> |
+| <img src="screenshots/homebot (1).jpg" width="30%" /> | <img src="screenshots/homebot (2).jpg" width="30%" /> | <img src="screenshots/homebot (3).jpg" width="30%" /> |
 
 ---
 
