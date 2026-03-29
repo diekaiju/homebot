@@ -1,8 +1,21 @@
-<?xml version="1.0" encoding="utf-8"?>
-<com.abast.homebot.views.LauncherLayout
-        xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.abast.homebot.views.LauncherLayout
+        android:id="@+id/launcher_background"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:id="@+id/launcher_background"
         android:background="@color/opaque"
-        android:backgroundTint="@color/opaque"/>
+        android:backgroundTint="@color/opaque" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/launcher_grid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:padding="24dp"
+        android:visibility="gone"
+        android:background="#AA000000" />
+
+</FrameLayout>

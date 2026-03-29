@@ -8,6 +8,8 @@ import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
+import android.view.Gravity
+import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
@@ -15,7 +17,10 @@ import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.reactivex.Single
@@ -33,6 +38,14 @@ class QuickSearchActivity : AppCompatActivity() {
                 val browserIntent = Intent(Intent.ACTION_WEB_SEARCH)
                 browserIntent.putExtra("query", result)
                 startActivity(browserIntent)
+                finish()
+            }
+            "calc" -> {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Calculation Result", result)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(this, "Copied result: $result", Toast.LENGTH_SHORT).show()
+                finish()
             }
             else -> {
                 val launchIntent = packageManager.getLaunchIntentForPackage(result)
@@ -63,10 +76,25 @@ class QuickSearchActivity : AppCompatActivity() {
         }
 
         searchInput = findViewById(R.id.search_input)
+        searchInput.post {
+            searchInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(searchInput, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
+        }
         resultsView = findViewById(R.id.search_results)
-
-        val layoutManager = LinearLayoutManager(this, LinearLayoutManager.VERTICAL, true)
-        layoutManager.stackFromEnd = true
+        
+        val spanCount = 4
+        val layoutManager = GridLayoutManager(this, spanCount)
+        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                val type = adapter.items.getOrNull(position)?.type
+                return if (type == "web" || type == "calc") {
+                    spanCount
+                } else {
+                    1
+                }
+            }
+        }
         resultsView.layoutManager = layoutManager
         resultsView.adapter = adapter
 
@@ -111,6 +139,10 @@ class QuickSearchActivity : AppCompatActivity() {
             }.toMutableList()
 
             if (lower.isNotEmpty()) {
+                val mathResult = evaluateMath(lower)
+                if (mathResult != null) {
+                    uiObjects.add(0, SearchItem("Result: $mathResult", mathResult, getDrawable(R.drawable.ic_calculator), "calc"))
+                }
                 uiObjects.add(0, SearchItem("Search Web: \"$query\"", query, getDrawable(android.R.drawable.ic_menu_search), "web"))
             }
             uiObjects
@@ -126,6 +158,23 @@ class QuickSearchActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         disposables.clear()
+    }
+
+    private fun evaluateMath(query: String): String? {
+        val clean = query.replace(" ", "")
+        val regex = Regex("^([0-9.]+)([+\\-*/])([0-9.]+)$")
+        val match = regex.find(clean) ?: return null
+        val (s1, op, s2) = match.destructured
+        val v1 = s1.toDoubleOrNull() ?: return null
+        val v2 = s2.toDoubleOrNull() ?: return null
+        val res = when (op) {
+            "+" -> v1 + v2
+            "-" -> v1 - v2
+            "*" -> v1 * v2
+            "/" -> if (v2 != 0.0) v1 / v2 else "Error"
+            else -> null
+        }
+        return res?.toString()?.removeSuffix(".0")
     }
 }
 
@@ -148,8 +197,44 @@ class SearchAdapter(val onClick: (String, String) -> Unit) : RecyclerView.Adapte
         val item = items[position]
         holder.name.text = item.label
         holder.icon.setImageDrawable(item.icon)
+        
+        // Dynamic UI adjustment based on item type
+        val layout = holder.itemView as LinearLayout
+        if (item.type == "web" || item.type == "calc") {
+            layout.orientation = LinearLayout.HORIZONTAL
+            layout.gravity = Gravity.CENTER_VERTICAL
+            layout.setPadding(32, 16, 32, 16)
+            holder.name.apply {
+                gravity = Gravity.START
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+                setPadding(16, 0, 0, 0)
+            }
+            holder.icon.layoutParams.apply {
+                width = 32.px
+                height = 32.px
+            }
+        } else {
+            layout.orientation = LinearLayout.VERTICAL
+            layout.gravity = Gravity.CENTER
+            layout.setPadding(8, 8, 8, 8)
+            holder.name.apply {
+                gravity = Gravity.CENTER
+                textSize = 12f
+                setTypeface(null, Typeface.NORMAL)
+                setPadding(0, 0, 0, 0)
+            }
+            holder.icon.layoutParams.apply {
+                width = 56.px
+                height = 56.px
+            }
+        }
+        
         holder.itemView.setOnClickListener { onClick(item.intentData, item.type) }
     }
+
+    private val Int.px: Int
+        get() = (this * android.content.res.Resources.getSystem().displayMetrics.density).toInt()
 
     override fun getItemCount(): Int = items.size
 }

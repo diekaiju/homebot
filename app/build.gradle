@@ -6,7 +6,7 @@ apply plugin: 'kotlin-android'
 
 
 android {
-    namespace "com.abast.homebot"
+    namespace = "com.abast.homebot"
     compileSdk 36
     defaultConfig {
         applicationId "com.abast.homebot"
@@ -15,15 +15,18 @@ android {
         versionCode 12
         versionName "1.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        resConfigs "en"
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.debug
         }
     }
     buildFeatures {
-        viewBinding true
+        viewBinding = true
     }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -43,6 +46,7 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:1.1.3'
     implementation 'androidx.recyclerview:recyclerview:1.0.0'
     implementation 'androidx.palette:palette:1.0.0'
+    implementation 'androidx.browser:browser:1.4.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin:2.9.6'
     implementation 'org.jetbrains.kotlin:kotlin-reflect:1.8.20'
@@ -51,5 +55,4 @@ dependencies {
     testImplementation 'junit:junit:4.12'
     androidTestImplementation 'androidx.test:runner:1.1.2-alpha02'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.2.0-alpha02'
-    implementation project(':quicksearch')
 }

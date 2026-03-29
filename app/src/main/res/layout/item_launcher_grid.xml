@@ -1,26 +1,24 @@
-<?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="8dp"
-    android:background="?android:attr/selectableItemBackground"
-    android:gravity="center">
+    android:gravity="center"
+    android:padding="8dp">
 
-    <ImageView
-        android:id="@+id/app_icon"
+    <com.abast.homebot.views.QuickActionButton
+        android:id="@+id/button"
         android:layout_width="56dp"
         android:layout_height="56dp" />
 
     <TextView
-        android:id="@+id/app_name"
+        android:id="@+id/label"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:textColor="#FFF"
+        android:layout_marginTop="4dp"
+        android:textColor="#FFFFFF"
         android:textSize="12sp"
-        android:maxLines="2"
+        android:maxLines="1"
         android:ellipsize="end"
-        android:gravity="center"
-        android:textStyle="normal" />
+        android:gravity="center" />
+
 </LinearLayout>

@@ -17,6 +17,7 @@
     <string name="pref_title_file">Open a file</string>
     <string name="pref_title_folder">Folder</string>
     <string name="pref_title_quick_search">Quick Search</string>
+    <string name="pref_title_calculator">Calculator</string>
 
     <string name="ok">OK</string>
     <string name="cancel">Cancel</string>

@@ -105,15 +105,8 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                     Intent(context, EditFolderActivity::class.java),
                     EditFolderActivity.NEW_FOLDER_REQUEST_CODE
                 )
-            QuickSearch::class -> {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(context)) {
-                    val intent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
-                    intent.data = android.net.Uri.parse("package:" + context!!.packageName)
-                    startActivityForResult(intent, 217)
-                } else {
-                    actionsPreference.addAction(QuickSearch)
-                }
-            }
+            QuickSearch::class -> actionsPreference.addAction(QuickSearch)
+            Calculator::class -> actionsPreference.addAction(Calculator)
             else -> throw IllegalStateException()
         }
     }
@@ -236,13 +229,7 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                         actionsPreference.refresh()
                     }
                 }
-                217 -> {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M && android.provider.Settings.canDrawOverlays(context)) {
-                        actionsPreference.addAction(QuickSearch)
-                    } else {
-                        Toast.makeText(context, "Permission denied. Try again.", Toast.LENGTH_SHORT).show()
-                    }
-                }
+
             }
         }
     }

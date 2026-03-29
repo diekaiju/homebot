@@ -16,7 +16,7 @@
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />
-    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+    <!-- SYSTEM_ALERT_WINDOW removed -->
 
     <application
         android:allowBackup="false"

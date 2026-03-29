@@ -12,6 +12,7 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import androidx.annotation.StringRes
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.core.content.ContextCompat
 import com.abast.homebot.FlashlightService
 import com.abast.homebot.MainActivity
@@ -39,7 +40,8 @@ import kotlin.reflect.KClass
         JsonSubTypes.Type(LaunchShortcut::class),
         JsonSubTypes.Type(ToggleFlashlight::class),
         JsonSubTypes.Type(Folder::class),
-        JsonSubTypes.Type(QuickSearch::class)
+        JsonSubTypes.Type(QuickSearch::class),
+        JsonSubTypes.Type(Calculator::class)
     ]
 )
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -76,6 +78,7 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
     OpenWeb::class -> OpenWeb("")
     Folder::class -> Folder("", "", listOf(ToggleFlashlight))
     QuickSearch::class -> QuickSearch
+    Calculator::class -> Calculator
     else -> throw IllegalStateException()
 }
 
@@ -145,26 +148,14 @@ object OpenRecentApps : HomeAction() {
 
     override fun label(context: Context): String = title(context)
     override fun run(context: Context) {
-        try {
-            val serviceManagerClass = Class.forName("android.os.ServiceManager")
-            val getService = serviceManagerClass.getMethod("getService", String::class.java)
-            val retbinder = getService.invoke(serviceManagerClass, "statusbar") as IBinder
-            val statusBarClass = Class.forName(retbinder.interfaceDescriptor!!)
-            val statusBarObject =
-                statusBarClass.classes[0].getMethod("asInterface", IBinder::class.java)
-                    .invoke(null, retbinder)
-            val clearAll = statusBarClass.getMethod("toggleRecentApps")
-            clearAll.isAccessible = true
-            clearAll.invoke(statusBarObject)
-            (context as Activity).finish()
-        } catch (ex: Exception) {
-            ex.printStackTrace()
-            launchMainActivity(context)
-        }
+        val intent = Intent("com.android.systemui.recent.action.TOGGLE_RECENTS")
+        intent.setPackage("com.android.systemui")
+        context.sendBroadcast(intent)
+        (context as Activity).finish()
     }
 
     override val titleRes: Int
-        get() = R.string.pref_title_prev_app
+        get() = R.string.pref_title_recents
 }
 
 object QuickSearch : HomeAction() {
@@ -174,7 +165,7 @@ object QuickSearch : HomeAction() {
     override fun label(context: Context): String = title(context)
 
     override fun run(context: Context) {
-        val intent = Intent(context, Class.forName("com.tk.quicksearch.overlay.OverlayActivity")).apply {
+        val intent = Intent(context, com.abast.homebot.QuickSearchActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         context.startActivity(intent)
@@ -273,13 +264,54 @@ data class OpenWeb(val address: String) : HomeAction() {
         var finalUrl = address
         if (!finalUrl.startsWith("http://") && !finalUrl.startsWith("https://"))
             finalUrl = "http://$address"
-        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(finalUrl))
-        activity.startActivity(browserIntent)
+        val customTabsIntent = CustomTabsIntent.Builder().build()
+        customTabsIntent.launchUrl(context, Uri.parse(finalUrl))
         activity.finish()
     }
 
     override val titleRes: Int
         get() = R.string.pref_title_web
+}
+
+object Calculator : HomeAction() {
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_calculator)!!
+
+    override fun label(context: Context): String = title(context)
+
+    override fun run(context: Context) {
+        val activity = context as Activity
+        try {
+            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALCULATOR)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+            activity.finish()
+        } catch (e: Exception) {
+            // Fallback: search for common calculator packages
+            val calculatorPackages = listOf(
+                "com.android.calculator2",
+                "com.google.android.calculator",
+                "com.sec.android.app.popupcalculator",
+                "com.miui.calculator",
+                "com.huawei.calculator"
+            )
+            val pm = activity.packageManager
+            for (pkg in calculatorPackages) {
+                val intent = pm.getLaunchIntentForPackage(pkg)
+                if (intent != null) {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    activity.startActivity(intent)
+                    activity.finish()
+                    return
+                }
+            }
+            Toast.makeText(context, "Calculator not found", Toast.LENGTH_SHORT).show()
+            launchMainActivity(context)
+        }
+    }
+
+    override val titleRes: Int
+        get() = R.string.pref_title_calculator
 }
 
 data class Folder(val iconFile: String, val name: String, val actions: List<HomeAction>) :
