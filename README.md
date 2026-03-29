@@ -70,7 +70,6 @@ To build locally:
 
 Special thanks to the original creators whose work made this possible:
 - [kklorenzotesta/homebot](https://github.com/kklorenzotesta/homebot) - The original core project.
-- [teja2495/quick-search](https://github.com/teja2495/quick-search) - The inspiration and logic for the search overlay.
 
 ---
 
