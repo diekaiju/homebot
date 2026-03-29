@@ -29,7 +29,8 @@
     <string name="other_activities">Other activities</string>
     <string name="default_activity">Default app activity</string>
     <string name="enter_url">Enter a web URL</string>
-
+    <string name="search_hint">Search apps or web...</string>
+    <string name="calc_hint">Enter expression (e.g. 5 + 3 * 2)...</string>
     <string name="web_hint">www.duck.com</string>
     <string name="no_items">No available items</string>
     <string name="open_source_licenses">Open-source licenses</string>

@@ -23,9 +23,9 @@ This project is a modern fork of [kklorenzotesta/homebot](https://github.com/kkl
 
 ## 📸 Screenshots
 
-| Settings & Config | Quick Search Overlay | Action Launcher | Actions |
-| :---: | :---: | :---: | :---: |
-| <img src="screenshots/homebot (1).jpg" width="60%" /> | <img src="screenshots/homebot (2).jpg" width="60%" /> | <img src="screenshots/homebot (3).jpg" width="60%" /> | <img src="screenshots/homebot (4).jpg" width="60%" /> |
+| Settings & Config | Quick Search Overlay | Action Launcher | Actions | Calculator Overlay |
+| :---: | :---: | :---: | :---: | :---: |
+| <img src="screenshots/homebot (1).jpg" width="60%" /> | <img src="screenshots/homebot (2).jpg" width="60%" /> | <img src="screenshots/homebot (3).jpg" width="60%" /> | <img src="screenshots/homebot (4).jpg" width="60%" /> | <img src="screenshots/homebot (5).jpg" width="60%" /> | <img src="screenshots/homebot.jpg" width="60%" /> |
 
 ---
 

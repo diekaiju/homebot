@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent"
+    android:gravity="bottom"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/calculator_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardCornerRadius="32dp"
+        app:cardElevation="0dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end"
+                android:layout_marginBottom="16dp"
+                android:paddingHorizontal="8dp">
+
+                <TextView
+                    android:id="@+id/tvExpression"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#B3FFFFFF"
+                    android:textSize="20sp"
+                    android:maxLines="1"
+                    android:ellipsize="start" />
+
+                <TextView
+                    android:id="@+id/tvResult"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="0"
+                    android:textColor="#FFFFFF"
+                    android:textSize="48sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#33FFFFFF"
+                android:layout_marginBottom="16dp" />
+
+            <TableLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:stretchColumns="0,1,2,3">
+
+                <TableRow android:layout_weight="1" android:layout_marginBottom="8dp">
+                    <Button style="@style/CalcButton.Special" android:id="@+id/btnAC" android:text="AC" android:layout_weight="1" android:layout_height="match_parent" />
+                    <Button style="@style/CalcButton.Special" android:id="@+id/btnParentheses" android:text="( )" android:layout_weight="1" android:layout_height="match_parent" />
+                    <Button style="@style/CalcButton.Special" android:id="@+id/btnPercent" android:text="%" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton.Operator" android:id="@+id/btnDiv" android:text="÷" android:layout_weight="1" android:layout_height="match_parent"/>
+                </TableRow>
+
+                <TableRow android:layout_weight="1" android:layout_marginBottom="8dp">
+                    <Button style="@style/CalcButton" android:id="@+id/btn7" android:text="7" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn8" android:text="8" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn9" android:text="9" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton.Operator" android:id="@+id/btnMul" android:text="×" android:layout_weight="1" android:layout_height="match_parent"/>
+                </TableRow>
+
+                <TableRow android:layout_weight="1" android:layout_marginBottom="8dp">
+                    <Button style="@style/CalcButton" android:id="@+id/btn4" android:text="4" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn5" android:text="5" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn6" android:text="6" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton.Operator" android:id="@+id/btnSub" android:text="−" android:layout_weight="1" android:layout_height="match_parent"/>
+                </TableRow>
+
+                <TableRow android:layout_weight="1" android:layout_marginBottom="8dp">
+                    <Button style="@style/CalcButton" android:id="@+id/btn1" android:text="1" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn2" android:text="2" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btn3" android:text="3" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton.Operator" android:id="@+id/btnAdd" android:text="+" android:layout_weight="1" android:layout_height="match_parent"/>
+                </TableRow>
+
+                <TableRow android:layout_weight="1">
+                    <Button style="@style/CalcButton" android:id="@+id/btn0" android:text="0" android:layout_weight="1" android:layout_height="match_parent"/>
+                    <Button style="@style/CalcButton" android:id="@+id/btnDot" android:text="." android:layout_weight="1" android:layout_height="match_parent"/>
+                    <ImageButton
+                        android:id="@+id/btnBack"
+                        style="@style/CalcButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:src="@drawable/ic_delete_sweep_black_24dp"
+                        app:tint="#FFFFFF"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:padding="16dp"
+                        android:scaleType="centerInside"
+                        android:contentDescription="Backspace" />
+                    <Button style="@style/CalcButton.Equals" android:id="@+id/btnEquals" android:text="=" android:layout_weight="1" android:layout_height="match_parent"/>
+                </TableRow>
+            </TableLayout>
+
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+</LinearLayout>

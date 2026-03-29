@@ -280,34 +280,11 @@ object Calculator : HomeAction() {
     override fun label(context: Context): String = title(context)
 
     override fun run(context: Context) {
-        val activity = context as Activity
-        try {
-            val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALCULATOR)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            activity.startActivity(intent)
-            activity.finish()
-        } catch (e: Exception) {
-            // Fallback: search for common calculator packages
-            val calculatorPackages = listOf(
-                "com.android.calculator2",
-                "com.google.android.calculator",
-                "com.sec.android.app.popupcalculator",
-                "com.miui.calculator",
-                "com.huawei.calculator"
-            )
-            val pm = activity.packageManager
-            for (pkg in calculatorPackages) {
-                val intent = pm.getLaunchIntentForPackage(pkg)
-                if (intent != null) {
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    activity.startActivity(intent)
-                    activity.finish()
-                    return
-                }
-            }
-            Toast.makeText(context, "Calculator not found", Toast.LENGTH_SHORT).show()
-            launchMainActivity(context)
+        val intent = Intent(context, com.abast.homebot.CalculatorActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
+        context.startActivity(intent)
+        (context as? Activity)?.finish()
     }
 
     override val titleRes: Int

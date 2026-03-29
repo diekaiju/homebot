@@ -32,11 +32,13 @@ class QuickSearchActivity : AppCompatActivity() {
 
     private lateinit var searchInput: EditText
     private lateinit var resultsView: RecyclerView
+    private var mode: String? = null
     private val adapter = SearchAdapter { result, type ->
         when (type) {
             "web" -> {
-                val browserIntent = Intent(Intent.ACTION_WEB_SEARCH)
-                browserIntent.putExtra("query", result)
+                val url = "https://www.google.com/search?q=${java.net.URLEncoder.encode(result, "UTF-8")}"
+                val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 startActivity(browserIntent)
                 finish()
             }
@@ -45,7 +47,7 @@ class QuickSearchActivity : AppCompatActivity() {
                 val clip = android.content.ClipData.newPlainText("Calculation Result", result)
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(this, "Copied result: $result", Toast.LENGTH_SHORT).show()
-                finish()
+                return@SearchAdapter // don't finish yet, let user copy or continue
             }
             else -> {
                 val launchIntent = packageManager.getLaunchIntentForPackage(result)
@@ -75,7 +77,17 @@ class QuickSearchActivity : AppCompatActivity() {
             false
         }
 
+        mode = intent.getStringExtra("mode")
         searchInput = findViewById(R.id.search_input)
+        
+        if (mode == "calc") {
+            searchInput.hint = getString(R.string.calc_hint)
+            searchInput.inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            findViewById<ImageView>(R.id.search_icon).setImageResource(R.drawable.ic_calculator)
+        } else {
+            searchInput.hint = getString(R.string.search_hint)
+        }
+
         searchInput.post {
             searchInput.requestFocus()
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
@@ -162,19 +174,77 @@ class QuickSearchActivity : AppCompatActivity() {
 
     private fun evaluateMath(query: String): String? {
         val clean = query.replace(" ", "")
-        val regex = Regex("^([0-9.]+)([+\\-*/])([0-9.]+)$")
-        val match = regex.find(clean) ?: return null
-        val (s1, op, s2) = match.destructured
-        val v1 = s1.toDoubleOrNull() ?: return null
-        val v2 = s2.toDoubleOrNull() ?: return null
-        val res = when (op) {
-            "+" -> v1 + v2
-            "-" -> v1 - v2
-            "*" -> v1 * v2
-            "/" -> if (v2 != 0.0) v1 / v2 else "Error"
-            else -> null
+        if (clean.isEmpty() || !clean.any { it in "0123456789" }) return null
+        if (!clean.all { it in "0123456789.+-*/^()" }) return null
+        
+        return try {
+            object : Any() {
+                var pos = -1
+                var ch = 0
+
+                fun nextChar() {
+                    ch = if (++pos < clean.length) clean[pos].toInt() else -1
+                }
+
+                fun eat(charToEat: Int): Boolean {
+                    while (ch == ' '.toInt()) nextChar()
+                    if (ch == charToEat) {
+                        nextChar()
+                        return true
+                    }
+                    return false
+                }
+
+                fun parse(): Double {
+                    nextChar()
+                    val x = parseExpression()
+                    if (pos < clean.length) throw RuntimeException()
+                    return x
+                }
+
+                fun parseExpression(): Double {
+                    var x = parseTerm()
+                    while (true) {
+                        if (eat('+'.toInt())) x += parseTerm()
+                        else if (eat('-'.toInt())) x -= parseTerm()
+                        else return x
+                    }
+                }
+
+                fun parseTerm(): Double {
+                    var x = parseFactor()
+                    while (true) {
+                        if (eat('*'.toInt())) x *= parseFactor()
+                        else if (eat('/'.toInt())) x /= parseFactor()
+                        else return x
+                    }
+                }
+
+                fun parseFactor(): Double {
+                    if (eat('+'.toInt())) return parseFactor()
+                    if (eat('-'.toInt())) return -parseFactor()
+                    var x: Double
+                    val startPos = pos
+                    if (eat('('.toInt())) {
+                        x = parseExpression()
+                        eat(')'.toInt())
+                    } else if (ch >= '0'.toInt() && ch <= '9'.toInt() || ch == '.'.toInt()) {
+                        while (ch >= '0'.toInt() && ch <= '9'.toInt() || ch == '.'.toInt()) nextChar()
+                        x = clean.substring(startPos, pos).toDouble()
+                    } else {
+                        throw RuntimeException()
+                    }
+                    if (eat('^'.toInt())) x = Math.pow(x, parseFactor())
+                    return x
+                }
+            }.parse().let {
+                if (it.isInfinite() || it.isNaN()) "Error"
+                else if (it == it.toLong().toDouble()) it.toLong().toString()
+                else String.format("%.4f", it).trimEnd('0').trimEnd('.')
+            }
+        } catch (e: Exception) {
+            null
         }
-        return res?.toString()?.removeSuffix(".0")
     }
 }
 

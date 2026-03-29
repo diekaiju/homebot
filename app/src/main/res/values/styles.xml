@@ -46,4 +46,41 @@
         <item name="android:negativeButtonText">@string/close_add_action_dialog_button_text</item>
     </style>
 
+    <style name="CalcButton" parent="Widget.MaterialComponents.Button.TextButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="android:textSize">22sp</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:background">@null</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="rippleColor">#33FFFFFF</item>
+        <item name="cornerRadius">32dp</item>
+    </style>
+
+    <style name="CalcButton.Special" parent="CalcButton">
+        <item name="android:textColor">#81C784</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="CalcButton.Operator" parent="CalcButton">
+        <item name="android:textColor">#F06292</item>
+        <item name="android:textSize">28sp</item>
+    </style>
+
+    <style name="CalcButton.Equals" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">64dp</item>
+        <item name="android:layout_margin">4dp</item>
+        <item name="backgroundTint">#66FFFFFF</item>
+        <item name="cornerRadius">32dp</item>
+        <item name="android:textColor">#FFFFFF</item>
+        <item name="android:textSize">28sp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="strokeColor">#FFFFFF</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
 </resources>

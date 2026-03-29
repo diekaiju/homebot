@@ -88,6 +88,12 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/sharing_paths" />
         </provider>
+        <activity
+            android:name=".CalculatorActivity"
+            android:theme="@style/TranslucentTheme"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="stateAlwaysHidden" />
     </application>
 
 </manifest>
