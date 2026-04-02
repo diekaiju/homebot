@@ -107,6 +107,7 @@ class HomeBotPreferenceFragment : PreferenceFragmentCompat(), AddActionPreferenc
                 )
             QuickSearch::class -> actionsPreference.addAction(QuickSearch)
             Calculator::class -> actionsPreference.addAction(Calculator)
+            CircleToSearch::class -> actionsPreference.addAction(CircleToSearch)
             else -> throw IllegalStateException()
         }
     }

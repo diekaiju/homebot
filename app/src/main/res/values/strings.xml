@@ -64,4 +64,7 @@
     <string name="export_settings_error_message">An error occurred while exporting your settings</string>
     <string name="empty_actions_list_text">No action configured</string>
 
+    <string name="pref_title_circle_to_search">Circle to Search</string>
+    <string name="circle_to_search_permission_title">Enable Accessibility Service</string>
+    <string name="circle_to_search_permission_message">To use Circle to Search, please enable the HomeBot Accessibility Service in settings.</string>
 </resources>

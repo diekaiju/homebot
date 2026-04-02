@@ -41,7 +41,8 @@ import kotlin.reflect.KClass
         JsonSubTypes.Type(ToggleFlashlight::class),
         JsonSubTypes.Type(Folder::class),
         JsonSubTypes.Type(QuickSearch::class),
-        JsonSubTypes.Type(Calculator::class)
+        JsonSubTypes.Type(Calculator::class),
+        JsonSubTypes.Type(CircleToSearch::class)
     ]
 )
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -79,6 +80,7 @@ fun KClass<out HomeAction>.dumbInstance(): HomeAction = when (this) {
     Folder::class -> Folder("", "", listOf(ToggleFlashlight))
     QuickSearch::class -> QuickSearch
     Calculator::class -> Calculator
+    CircleToSearch::class -> CircleToSearch
     else -> throw IllegalStateException()
 }
 
@@ -181,28 +183,32 @@ data class LaunchApp(val uri: String) : HomeAction() {
 
     override fun icon(context: Context): Drawable {
         val cache = iconCache?.get()
-        return if (cache == null) {
+        if (cache != null) return cache
+        return try {
             val newIcon = context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
             iconCache = SoftReference(newIcon)
             newIcon
-        } else {
-            cache
+        } catch (e: Exception) {
+            context.getDrawable(android.R.drawable.sym_def_app_icon)!!
         }
     }
 
-    override fun label(context: Context): String =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Log.d("HBT", "uri is $uri")
-            context.packageManager.resolveActivity(
-                Intent.parseUri(uri, 0),
-                PackageManager.ResolveInfoFlags.of(0L)
-            )!!
-        } else {
-            context.packageManager.resolveActivity(
-                Intent.parseUri(uri, 0),
-                0
-            )!!
-        }.activityInfo.loadLabel(context.packageManager).toString()
+    override fun label(context: Context): String {
+        return try {
+            val intent = Intent.parseUri(uri, 0)
+            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.resolveActivity(
+                    intent,
+                    PackageManager.ResolveInfoFlags.of(0L)
+                )
+            } else {
+                context.packageManager.resolveActivity(intent, 0)
+            }
+            info?.activityInfo?.loadLabel(context.packageManager)?.toString() ?: "Unknown App"
+        } catch (e: Exception) {
+            "Unknown App"
+        }
+    }
 
     override fun run(context: Context) {
         val activity = context as Activity
@@ -232,7 +238,11 @@ data class LaunchShortcut(val uri: String, val name: String, val iconFile: Strin
                 if (drawable != null) return drawable
             }
         }
-        return context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+        return try {
+            context.packageManager.getActivityIcon(Intent.parseUri(uri, 0))
+        } catch (e: Exception) {
+            context.getDrawable(android.R.drawable.sym_def_app_icon)!!
+        }
     }
 
     override fun label(context: Context): String = name
@@ -305,4 +315,28 @@ data class Folder(val iconFile: String, val name: String, val actions: List<Home
         Drawable.createFromPath(File(context.filesDir, iconFile).absolutePath)!!
 
     override fun run(context: Context) {}
+}
+
+object CircleToSearch : HomeAction() {
+    override fun icon(context: Context): Drawable =
+        context.getDrawable(R.drawable.ic_qs_circle_to_search)!!
+
+    override fun label(context: Context): String = title(context)
+
+    override fun run(context: Context) {
+        val activity = context as Activity
+        if (com.abast.homebot.circletosearch.CircleToSearchAccessibilityService.instance != null) {
+            com.abast.homebot.circletosearch.CircleToSearchAccessibilityService.triggerCapture()
+            activity.finish()
+        } else {
+            // Service not enabled, show toast and open settings
+            Toast.makeText(context, R.string.circle_to_search_permission_message, Toast.LENGTH_LONG).show()
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            context.startActivity(intent)
+            activity.finish()
+        }
+    }
+
+    override val titleRes: Int
+        get() = R.string.pref_title_circle_to_search
 }

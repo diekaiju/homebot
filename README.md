@@ -14,6 +14,7 @@ This project is a modern fork of [kklorenzotesta/homebot](https://github.com/kkl
 
 - **⚡ Instant Actions**: Launch apps, activities, or system shortcuts with a single gesture.
 - **🔍 Quick Search Overlay**: A native, lightning-fast floating search bar to find apps and search the web without leaving your current app.
+- **⭕ Circle To Search**: Innovative screen-search feature. Draw a circle around any text or image on your screen to perform a Google Lens search or translate text instantly.
 - **🧮 Integrated Calculator**: Quickly perform calculations directly within the assistant overlay.
 - **🛠️ Grid Launcher**: Configure multiple actions and access them through an elegant, customizable grid menu.
 - **🔦 System Toggles**: Fast access to flashlight, brightness, and recent apps.
@@ -70,6 +71,7 @@ To build locally:
 
 Special thanks to the original creators whose work made this possible:
 - [kklorenzotesta/homebot](https://github.com/kklorenzotesta/homebot) - The original core project.
+- [AKS-Labs/CircleToSearch](https://github.com/AKS-Labs/CircleToSearch) - Provided the innovative Circle To Search implementation.
 
 ---
 

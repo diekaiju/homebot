@@ -83,4 +83,15 @@
         <item name="strokeWidth">1dp</item>
     </style>
 
+    <style name="Theme.CircleToSearch" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.CircleToSearch.Transparent" parent="Theme.CircleToSearch">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
 </resources>
