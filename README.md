@@ -18,7 +18,6 @@ This project is a modern fork of [kklorenzotesta/homebot](https://github.com/kkl
 - **🧮 Integrated Calculator**: Quickly perform calculations directly within the assistant overlay.
 - **🛠️ Grid Launcher**: Configure multiple actions and access them through an elegant, customizable grid menu.
 - **🔦 System Toggles**: Fast access to flashlight, brightness, and recent apps.
-- **📂 Folders**: Organize your actions into logical groups for even more flexibility.
 
 ---
 
